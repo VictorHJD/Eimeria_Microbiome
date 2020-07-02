@@ -1,12 +1,22 @@
 ###Alpha diversity graphics
-
-library(ggplot2)
-library(phyloseq)
-library(vegan)
+library("lifecycle", lib.loc="/usr/local/lib/R/site-library") 
+library("ggplot2")
+library("data.table")
+library("tidyverse")
+require("ggpubr")
+library("dplyr")
+library("plyr")
+library("vegan")
+library("gridExtra")
+library("grid")
+library("lattice")
+library("pheatmap")
+library("viridisLite")
+library("rcompanion")
+library("FSA")
+library("phyloseq")
 library("microbiome")
-library(data.table)
-library(gridExtra)
-library(grid)
+library("grid")
 
 if(!exists("PS")){
   source("MA_Multimarker.R")
@@ -72,9 +82,6 @@ qplot(log10(rowSums(otu_table(PS1))),binwidth=0.2) +
 
 ####Normalizing data :S 
 PSlog <- transform_sample_counts(PS, function(x) log(1 + x))
-PS16SAlog <- transform_sample_counts(PS1.16SA, function(x) log(1 + x))
-PS16SBlog <- transform_sample_counts(PS.16SB, function(x) log(1 + x))
-PS18Slog <- transform_sample_counts(PS1.18S, function(x) log(1 + x))
 
 ##Plot abundances (alpha diversity)
 sample_data(PS1)$dpi <- as.factor(sample_data(PS1)$dpi)
@@ -125,7 +132,6 @@ plot_richness(PS1, x="dpi", color="dpi", measures=c("Chao1", "Shannon", "Simpson
 #  coord_fixed(sqrt(evals[2] / evals[1]))
 
 ###Composition
-require("dplyr")
 PS1c <- PS1 %>%
   aggregate_taxa(level = "phylum") %>%  
   microbiome::transform(transform = "compositional")
@@ -158,63 +164,70 @@ sdtEim <- dplyr::select(sdtEim, 5,57)
 
 sdt <- plyr::join(sdt, sdtEim, by= "labels")
 
-require(dplyr)
 sdt %>%
   mutate(Eimeria_abundance = sdt$ReadsEim/sdt$TotalReads) -> sdt ### Add a new variable that will contain the sum of all the sequencing reads by primer pair
 
 ####OPG vs reads Eimeria 
-require(ggpubr)
 opgre <- ggplot(sdt, aes(OPG, ReadsEim))+
   geom_point(size= 3)+
   geom_smooth(method = lm)+
   xlab("Oocyst of Eimeria per gram of feces")+
   ylab("Sequence reads count (Eimeria)")+
+  geom_jitter(shape=21, position=position_jitter(0.2), size=5, aes(fill= dpi), color= "black")+
   labs(tag= "A)")+
   theme_bw()+
-  stat_cor(label.x = 3000000, label.y = 2000, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
-  stat_regline_equation(label.x = 3000000, label.y = 2300)
+  theme(text = element_text(size=16))+
+  #facet_wrap(~dpi) +
+  stat_cor(label.x = 3000000, label.y = 1300, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
+  stat_regline_equation(label.x = 3000000, label.y = 1400)
 
 opgea <- ggplot(sdt, aes(OPG, Eimeria_abundance))+
   geom_point(size= 3)+
   geom_smooth(method = lm)+
   xlab("Oocyst of Eimeria per gram of feces")+
   ylab("Relative abundance of Eimeria (Sequencing reads)")+
+  geom_jitter(shape=21, position=position_jitter(0.2), size=5, aes(fill= dpi), color= "black")+
   labs(tag= "B)")+
   theme_bw()+
+  theme(text = element_text(size=16))+
   stat_cor(label.x = 3000000, label.y = .2, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
   stat_regline_equation(label.x = 3000000, label.y = .25)
 
-pdf(file = "~/AA_Microbiome/Figures/OPG_Eimeria_Reads.pdf", width = 15, height = 15)
+pdf(file = "~/AA_Microbiome/Figures/OPG_Eimeria_Reads_Multimarker.pdf", width = 15, height = 15)
 grid.arrange(opgre,opgea, ncol= 1, nrow= 2)
 dev.off()
 
 ###Course of infection 
-compare_means(OPG ~ dpi,  data = sdt)
+#compare_means(OPG ~ dpi,  data = sdt) #Adjust table to run it
 
-a<- ggplot(sdt, aes(dpi, OPG, fill= dpi))+
+a<- ggplot(sdt, aes(dpi, OPG))+
   geom_boxplot()+
   xlab("Day post infection")+
   ylab("Oocyst of Eimeria per gram of feces")+
+  geom_jitter(shape=21, position=position_jitter(0.2), size=2.5, aes(fill= dpi), color= "black")+
   labs(tag= "A)")+
-  theme_bw()
+  theme_bw()+
+  theme(text = element_text(size=16))
 
-b<- ggplot(sdt, aes(dpi, ReadsEim, fill= dpi))+
+b<- ggplot(sdt, aes(dpi, ReadsEim))+
   geom_boxplot()+
   xlab("Day post infection")+
   ylab("Count of Eimeria assigned reads")+
+  geom_jitter(shape=21, position=position_jitter(0.2), size=2.5, aes(fill= dpi), color= "black")+
   labs(tag= "B)")+
-  theme_bw()
+  theme_bw()+
+  theme(text = element_text(size=16))
 
-c<- ggplot(sdt, aes(dpi, Eimeria_abundance, fill= dpi))+
+c<- ggplot(sdt, aes(dpi, Eimeria_abundance))+
   geom_boxplot()+
   xlab("Day post infection")+
   ylab("Relative proportion of Eimeria assigned reads")+
+  geom_jitter(shape=21, position=position_jitter(0.2), size=2.5, aes(fill= dpi), color= "black")+
   labs(tag= "C)")+
-  theme_bw()
+  theme_bw()+
+  theme(text = element_text(size=16))
 
-require("grid")
-require("gridExtra")
-pdf(file = "~/AA_Microbiome/Figures/Course_of_Eimeria_Infection.pdf", width = 15, height = 15)
+pdf(file = "~/AA_Microbiome/Figures/Course_of_Eimeria_Infection_Multimarker.pdf", width = 15, height = 15)
 grid.arrange(a,b,c, ncol= 1, nrow= 3)
 dev.off()
 
