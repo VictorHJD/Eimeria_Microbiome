@@ -231,6 +231,17 @@ pdf(file = "~/AA_Microbiome/Figures/Course_of_Eimeria_Infection_Multimarker.pdf"
 grid.arrange(a,b,c, ncol= 1, nrow= 3)
 dev.off()
 
+##For time series graph (under construction)
+require("reshape")
+
+sdt_reshape<- melt(sdt, id.vars = "EH_ID")
+sdt_reshape%>%
+  select(EH_ID)%>%
+  plyr::join(sdt, by = "EH_ID")%>%
+  group_by(EH_ID)%>%
+  ggplot(aes(x= dpi, y= OPG))+
+  geom_line()
+
 ###Alpha diversity along infection
 alphaDiv$labels<- rownames(alphaDiv)
 eveAll$labels <- rownames(eveAll)
