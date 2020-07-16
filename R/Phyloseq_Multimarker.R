@@ -64,11 +64,9 @@ ggplot(PrevAll2, aes(TotalAbundance, Prevalence / nsamples(PS),color=phylum)) +
   scale_x_log10() +  xlab("Total Abundance (read count)") + ylab("Prevalence [Frac. Samples]") +
   facet_wrap(~phylum) + theme(legend.position="none")
 
-
 # Define prevalence threshold as 2% of total samples
 prevalenceThreshold <- 0.02 * nsamples(PS)
 prevalenceThreshold
-
 
 # How many genera would be present after filtering?
 length(get_taxa_unique(PS, taxonomic.rank = "genus"))
@@ -167,31 +165,69 @@ sdt <- plyr::join(sdt, sdtEim, by= "labels")
 sdt %>%
   mutate(Eimeria_abundance = sdt$ReadsEim/sdt$TotalReads) -> sdt ### Add a new variable that will contain the sum of all the sequencing reads by primer pair
 
+###Incorporate qPCR information
+if(!exists("data.inf.exp")){
+  data.inf.exp<- read.csv(file="/SAN/Victors_playground/Eimeria_microbiome/sample_data_qPCR.csv")
+}
+
+data.inf.exp%>%
+  select(labels, Qty_mean, Tm_mean, Infection)%>%
+  distinct()-> data.inf.exp
+
+sdt<- join(sdt, data.inf.exp, by="labels")
 ####OPG vs reads Eimeria 
 opgre <- ggplot(sdt, aes(OPG, ReadsEim))+
-  geom_point(size= 3)+
   geom_smooth(method = lm)+
-  xlab("Oocyst of Eimeria per gram of feces")+
-  ylab("Sequence reads count (Eimeria)")+
+  scale_x_log10(name = "log10 Oocyst per gram feces (Flotation)")+
+  scale_y_log10("log10 Sequence reads count (Eimeria)")+
   geom_jitter(shape=21, position=position_jitter(0.2), size=5, aes(fill= dpi), color= "black")+
   labs(tag= "A)")+
   theme_bw()+
   theme(text = element_text(size=16))+
   #facet_wrap(~dpi) +
-  stat_cor(label.x = 3000000, label.y = 1300, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
-  stat_regline_equation(label.x = 3000000, label.y = 1400)
+  stat_cor(label.x = 5.5, label.y = 1.25, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
+  stat_regline_equation(label.x = 5.5, label.y = 1.5)+
+  stat_cor(label.x = 5.5,  label.y = 1,method = "spearman")
 
 opgea <- ggplot(sdt, aes(OPG, Eimeria_abundance))+
-  geom_point(size= 3)+
   geom_smooth(method = lm)+
-  xlab("Oocyst of Eimeria per gram of feces")+
-  ylab("Relative abundance of Eimeria (Sequencing reads)")+
+  scale_x_log10(name = "log10 Oocyst per gram feces (Flotation)")+
+  scale_y_continuous("Relative abundance of Eimeria (Sequencing reads)")+
   geom_jitter(shape=21, position=position_jitter(0.2), size=5, aes(fill= dpi), color= "black")+
   labs(tag= "B)")+
   theme_bw()+
   theme(text = element_text(size=16))+
-  stat_cor(label.x = 3000000, label.y = .2, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
-  stat_regline_equation(label.x = 3000000, label.y = .25)
+  stat_cor(label.x = 5.5, label.y = 0.1, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
+  stat_regline_equation(label.x = 5.5, label.y = 0.2)+
+  stat_cor(label.x = 5.5,  label.y = 0.15,method = "spearman")
+
+opgqpcr <- ggplot(sdt, aes(OPG, Qty_mean))+
+  geom_smooth(method = lm)+
+  scale_x_log10(name = "log10 Oocyst per gram feces (Flotation)")+
+  scale_y_log10(name = "log10 Number of Eimeria Oocysts (qPCR)")+
+  geom_jitter(shape=21, position=position_jitter(0.2), size=5, aes(fill= dpi), color= "black")+
+  labs(tag= "C)")+
+  theme_bw()+
+  theme(text = element_text(size=16))+
+  stat_cor(label.x = 5.5, label.y = 1.5, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
+  stat_regline_equation(label.x = 5.5, label.y = 2)+
+  stat_cor(label.x = 5.5,  label.y = 1,method = "spearman")
+
+qpcrre <- ggplot(sdt, aes(Qty_mean, ReadsEim))+
+  geom_smooth(method = lm)+
+  scale_x_log10(name = "log10 Number of Eimeria Oocysts (qPCR)")+
+  scale_y_log10(name = "log10 Sequence reads count (Eimeria)")+
+  geom_jitter(shape=21, position=position_jitter(0.2), size=5, aes(fill= dpi), color= "black")+
+  labs(tag= "C)")+
+  theme_bw()+
+  theme(text = element_text(size=16))+
+  stat_cor(label.x = 4.5, label.y = 0.75, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
+  stat_regline_equation(label.x = 4.5, label.y = 1)+
+  stat_cor(label.x = 4.5,  label.y = 0.5,method = "spearman")
+
+pdf(file = "~/AA_Microbiome/Figures/OPG_qPCR_Eimeria_Reads_Multimarker.pdf", width = 15, height = 20)
+grid.arrange(opgre,opgqpcr, qpcrre, ncol= 1, nrow= 3)
+dev.off()
 
 pdf(file = "~/AA_Microbiome/Figures/OPG_Eimeria_Reads_Multimarker.pdf", width = 15, height = 15)
 grid.arrange(opgre,opgea, ncol= 1, nrow= 2)
@@ -203,7 +239,7 @@ dev.off()
 a<- ggplot(sdt, aes(dpi, OPG))+
   geom_boxplot()+
   xlab("Day post infection")+
-  ylab("Oocyst of Eimeria per gram of feces")+
+  scale_y_log10("log10 Oocyst per gram feces (Flotation)")+
   geom_jitter(shape=21, position=position_jitter(0.2), size=2.5, aes(fill= dpi), color= "black")+
   labs(tag= "A)")+
   theme_bw()+
@@ -212,11 +248,21 @@ a<- ggplot(sdt, aes(dpi, OPG))+
 b<- ggplot(sdt, aes(dpi, ReadsEim))+
   geom_boxplot()+
   xlab("Day post infection")+
-  ylab("Count of Eimeria assigned reads")+
+  scale_y_log10("log10 Sequence reads count (Eimeria)")+
   geom_jitter(shape=21, position=position_jitter(0.2), size=2.5, aes(fill= dpi), color= "black")+
   labs(tag= "B)")+
   theme_bw()+
   theme(text = element_text(size=16))
+
+sdt%>%
+  ggplot(aes(dpi, Qty_mean))+
+  geom_boxplot()+
+  xlab("Day post infection")+
+  scale_y_log10(name = "log10 Number of Eimeria Oocysts (qPCR)")+ 
+  geom_jitter(shape=21, position=position_jitter(0.2), size=2.5, aes(fill= dpi), color= "black")+
+  labs(tag= "C)")+
+  theme_bw()+
+  theme(text = element_text(size=16))-> c
 
 c<- ggplot(sdt, aes(dpi, Eimeria_abundance))+
   geom_boxplot()+
@@ -227,7 +273,7 @@ c<- ggplot(sdt, aes(dpi, Eimeria_abundance))+
   theme_bw()+
   theme(text = element_text(size=16))
 
-pdf(file = "~/AA_Microbiome/Figures/Course_of_Eimeria_Infection_Multimarker.pdf", width = 15, height = 15)
+pdf(file = "~/AA_Microbiome/Figures/Course_of_Eimeria_Infection_Multimarker_2.pdf", width = 15, height = 20)
 grid.arrange(a,b,c, ncol= 1, nrow= 3)
 dev.off()
 
