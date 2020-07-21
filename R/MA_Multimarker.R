@@ -28,8 +28,8 @@ doTax <- TRUE
 
 ##These are the same steps that are followed by the DADA2 pipeline
 
-path <- "/SAN/Victors_playground/Eimeria_microbiome/Multimarker/2018_22_Eie_TestRun/" ## Test run 24.06.2020
-#path <- "/SAN/Victors_playground/Eimeria_microbiome/Multimarker/2018_22_Eie_FullRun_1/" ## Full run 
+#path <- "/SAN/Victors_playground/Eimeria_microbiome/Multimarker/2018_22_Eie_TestRun/" ## Test run 24.06.2020
+path <- "/SAN/Victors_playground/Eimeria_microbiome/Multimarker/2018_22_Eie_FullRun_1/" ## Full run 29.06.2020
 fastqFiles <- list.files(path, pattern=".fastq.gz$", full.names=TRUE) #take all fastaq files from the folder 
 fastqF <- grep("_R1_001.fastq.gz", fastqFiles, value = TRUE) #separate the forward reads
 fastqR <- grep("_R2_001.fastq.gz", fastqFiles, value = TRUE) #separate the reverse reads 
@@ -47,7 +47,8 @@ samples<-gsub("-", "_", basename(samples))
 
 #Creation of a folder for filtrated reads 
 
-filt_path <- "/SAN/Victors_playground/Eimeria_microbiome/Multimarker/filtered_TestRun/"
+#filt_path <- "/SAN/Victors_playground/Eimeria_microbiome/Multimarker/filtered_TestRun/"
+filt_path <- "/SAN/Victors_playground/Eimeria_microbiome/Multimarker/filtered_FullRun_1/"
 
 #Pipeline filtration 
 if(!file_test("-d", filt_path)) dir.create(filt_path)
@@ -84,7 +85,8 @@ primer <- PrimerPairsSet(primerF, primerR)
 ##Multi amplicon pipeline
 if(doMultiAmp){
   MA <- MultiAmplicon(primer, files)
-  filedir <- "/SAN/Victors_playground/Eimeria_microbiome/Multimarker/Stratified_files_TestRun"
+  #filedir <- "/SAN/Victors_playground/Eimeria_microbiome/Multimarker/Stratified_files_TestRun"
+  filedir <- "/SAN/Victors_playground/Eimeria_microbiome/Multimarker/Stratified_files_FullRun_1"
   if(dir.exists(filedir)) unlink(filedir, recursive=TRUE)
   MA <- sortAmplicons(MA, n=1e+05, filedir=filedir) ## This step sort the reads into amplicons based on the number of primer pairs
   
@@ -106,9 +108,11 @@ if(doMultiAmp){
   
   MA <- removeChimeraMulti(MA, mc.cores=12)
   
-  saveRDS(MA, "/SAN/Victors_playground/Eimeria_microbiome/Multimarker/MA_Multi_TestRun.RDS")
+  #saveRDS(MA, "/SAN/Victors_playground/Eimeria_microbiome/Multimarker/MA_Multi_TestRun.RDS")
+  saveRDS(MA, "/SAN/Victors_playground/Eimeria_microbiome/Multimarker/MA_Multi_FullRun_1.RDS")
 } else{
-  MA <- readRDS("/SAN/Victors_playground/Eimeria_microbiome/MA_Multi_TestRun.RDS")
+  #MA <- readRDS("/SAN/Victors_playground/Eimeria_microbiome/MA_Multi_TestRun.RDS")
+  MA <- readRDS("/SAN/Victors_playground/Eimeria_microbiome/Multimarker/MA_Multi_FullRun_1.RDS")
 }
 
 trackingF <- getPipelineSummary(MA) 
@@ -123,13 +127,15 @@ plotAmpliconNumbers(MA)
 MA <- blastTaxAnnot(MA,
                     db = "/SAN/db/blastdb/nt/nt",
                     negative_gilist = "/SAN/db/blastdb/uncultured.gi",
-                    infasta = "/SAN/Victors_playground/Eimeria_microbiome/Multimarker/in_TestRun.fasta",
-                    outblast = "/SAN/Victors_playground/Eimeria_microbiome/Multimarker/out_TetsRun.fasta",
+                    #infasta = "/SAN/Victors_playground/Eimeria_microbiome/Multimarker/in_TestRun.fasta",
+                    infasta = "/SAN/Victors_playground/Eimeria_microbiome/Multimarker/in_FullRun_1.fasta",
+                    #outblast = "/SAN/Victors_playground/Eimeria_microbiome/Multimarker/out_TestRun.fasta",
+                    outblast = "/SAN/Victors_playground/Eimeria_microbiome/Multimarker/out_FullRun_1.fasta",
                     taxonSQL = "/SAN/db/taxonomy/taxonomizr.sql", 
-                    num_threads = 12) ##Change for use more power!!
+                    num_threads = 20) ##Change for use more power!!
 
-saveRDS(MA, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/MATax_TestRun.Rds")
-
+#saveRDS(MA, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/MATax_TestRun.Rds")
+saveRDS(MA, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/MATax_FullRun_1.Rds")
 
 ### Add sample information
 require(phyloseq)
@@ -176,7 +182,8 @@ sample.data$labels<- as.vector(sample.data$labels)
 rownames(sample.data) <- make.unique(sample.data$labels)
 MA <- addSampleData(MA, sample.data)
 
-saveRDS(MA, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/MASample_TestRun.Rds")  ###START from here now! 
+#saveRDS(MA, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/MASample_TestRun.Rds")  ###START from here now! 
+saveRDS(MA, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/MASample_FullRun_1.Rds")
 
 ####Raw counts
 rawcounts <- data.frame(colSums(getRawCounts(MA)))
@@ -199,4 +206,14 @@ sum(otu_table(PS)) ##Total denoised reads = 267293 for TestRun
 #PS.l <- toPhyloseq(MA, colnames(MA),  multi2Single=FALSE) Not working, check later!
 
 #saveRDS(PS.l, file="/SAN/Victors_playground/Eimeria_microbiome/PhyloSeqList.Rds") ###For primer analysis
-saveRDS(PS, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_TestRun.Rds") ###For Sample analysis (Susana and Victor)
+#saveRDS(PS, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_TestRun.Rds") ###For Sample analysis (Susana and Victor)
+saveRDS(PS, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_FullRun_1.Rds") ###For Sample analysis (Susana and Victor)
+
+####Merge phyloseq objects 
+if(HMHZ_1){
+  PS1 <-  readRDS(file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_TestRun.Rds")
+  PS2 <-  readRDS(file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_FullRun_1.Rds")
+  
+  PS <- merge_phyloseq(PS1, PS) ###Works! 
+  saveRDS(PS, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_All.Rds") ###Results from full + test run 
+}

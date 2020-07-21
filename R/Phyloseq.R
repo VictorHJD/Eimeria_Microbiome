@@ -300,6 +300,13 @@ sdt <- data.table(as(sample_data(PS1), "data.frame"),
 
 setnames(sdt, "rn", "Sample_ID")
 
+###Summarize seq depth 18S
+sdt.18S <- data.table(as(sample_data(PS1.18S), "data.frame"),
+                  TotalReads= sample_sums(PS1.18S), keep.rownames = T)
+
+setnames(sdt.18S, "rn", "Sample_ID")
+
+saveRDS(PS1.18S, file = "/SAN/Victors_playground/Eimeria_microbiome/PS1_18S.Rds") ##Filtered 
 ##Check for Eimeria
 PS.eimeria <- subset_taxa(PS1, genus%in%"Eimeria")
 
@@ -309,8 +316,6 @@ sdtEim <- data.table(as(sample_data(PS.eimeria), "data.frame"),
 
 
 sdtEim <- dplyr::select(sdtEim, 5,57)
-
-sdt <- plyr::join(sdt, sdtEim, by= "labels")
 
 require(dplyr)
 sdt %>%

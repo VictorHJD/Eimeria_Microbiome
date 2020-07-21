@@ -23,8 +23,10 @@ if(!exists("PS")){
 }
 
 ##############Load data######################
-PS <- readRDS(file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_TestRun.Rds") ##Data from TestRun 
+#PS <- readRDS(file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_TestRun.Rds") ##Data from TestRun 
+#PS <-  readRDS(file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_FullRun_1.Rds")
 
+PS<- readRDS(file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_All.Rds")
 ###General check of data
 summarize_phyloseq(PS) ##Change dataset 
 rank_names(PS)
@@ -82,14 +84,98 @@ qplot(log10(rowSums(otu_table(PS1))),binwidth=0.2) +
 PSlog <- transform_sample_counts(PS, function(x) log(1 + x))
 
 ##Plot abundances (alpha diversity)
-sample_data(PS1)$dpi <- as.factor(sample_data(PS1)$dpi)
+###Let's eliminate samples with 0 read counts
+PS <- prune_samples(sample_sums(PS)>0, PS)
 
-plot_bar(PS1, fill="phylum") + facet_wrap(~dpi, scales= "free_x", nrow=1)
-plot_richness(PS1, x="dpi", color="dpi", measures=c("Chao1", "Shannon", "Simpson"))+ 
+############# General overview ##################
+###Check taxa
+table(tax_table(PS)[, "superkingdom"], exclude = NULL) ## 476 ASV's are not assigned as Eukaryotes or Bacteria
+
+###Check how many reads have every superkingdom
+###Raw counts 
+rawcounts_InfEx <- data.frame(rowSums(otu_table(PS)))
+rawcounts_InfEx[,2] <- rownames(rawcounts_InfEx)
+###Bacterial and Eukaryotic counts
+rawcounts_InfEx[,3] <- as.data.frame(rowSums(otu_table(subset_taxa(PS, superkingdom%in%"Bacteria"))))
+rawcounts_InfEx[,4] <- as.data.frame(rowSums(otu_table(subset_taxa(PS, superkingdom%in%"Eukaryota"))))
+#rawcounts_InfEx[,5] <- as.data.frame(rowSums(otu_table(subset_taxa(PS, superkingdom%in%NA))))
+colnames(rawcounts_InfEx) <- c("Raw_counts", "Mouse_ID", "Bacteria_reads", "Eukaryota_reads")
+rownames(rawcounts_InfEx) <- c(1:nrow(rawcounts_InfEx))
+rawcounts_InfEx <- data.frame(Mouse_ID = rawcounts_InfEx$Mouse_ID, 
+                             Raw_counts = rawcounts_InfEx$Raw_counts,
+                             Bacteria_reads= rawcounts_InfEx$Bacteria_reads,
+                             Eukaryota_reads= rawcounts_InfEx$Eukaryota_reads)#,
+#Unassigned_reads= rawcounts_InfEx$Unassigned_reads) 
+
+hist(rawcounts_InfEx$Raw_counts)
+summary(rawcounts_InfEx$Raw_counts)
+sum(rawcounts_InfEx$Raw_counts)
+
+## Bacteria read numbes 
+sum(otu_table(subset_taxa(PS, superkingdom %in% "Bacteria")))
+sum(otu_table(subset_taxa(PS, superkingdom %in% "Bacteria")))/sum(otu_table(PS))
+## Eukaryote read numbers 
+sum(otu_table(subset_taxa(PS, superkingdom %in% "Eukaryota")))
+sum(otu_table(subset_taxa(PS, superkingdom %in% "Eukaryota")))/sum(otu_table(PS))
+## Host read numbers
+hist(rowSums(otu_table(subset_taxa(PS, genus%in%"Mus"))))
+
+sum(otu_table(subset_taxa(PS, genus%in%"Mus")))/sum(otu_table(PS))
+###A lot of Mus :(
+
+###Eliminate reads assigned as "Mus"
+PS <- subset_taxa(PS, genus!= "Mus") ##Eliminate samples :S 
+summarize_phyloseq(PS)
+####Taxa detected
+as.data.frame(table(tax_table(PS)[, "phylum"]))
+as.data.frame(table(tax_table(PS)[, "genus"]))
+
+###Rarefaction curve 
+#rarcurv <- vegan::rarecurve(otu_table(PS),
+#                            label = F)
+
+## Eliminate samples with low counts
+##At 6000 reads samples have reached the species saturation (from rarecurve2!)
+PSHigh <- prune_samples(sample_sums(PS)>=6000, PS)
+summarize_phyloseq(PSHigh)
+nsamples(PSHigh)
+ntaxa(PSHigh)
+sum(otu_table(PSHigh))
+sum(otu_table(subset_taxa(PSHigh, superkingdom %in% "Bacteria")))/sum(otu_table(PSHigh))
+sum(otu_table(subset_taxa(PSHigh, superkingdom %in% "Eukaryota")))/sum(otu_table(PSHigh))
+#sum(otu_table(subset_taxa(PSHigh, genus%in%"Mus")))/sum(otu_table(PSHigh))
+
+table(tax_table(PSHigh)[, "superkingdom"], exclude = NULL)
+
+#rarcurv2 <- vegan::rarecurve(otu_table(PSHigh),
+#                             label = F)
+
+## Merge ASVs that have the same taxonomy at a certain taxonomic rank (in this case phylum and genus)
+PS.Gen <-  tax_glom(PSHigh, "genus", NArm = F)
+summarize_phyloseq(PS.Gen)
+
+PS.Fam<-  tax_glom(PSHigh, "family", NArm = F)
+summarize_phyloseq(PS.Fam)
+
+PS.Ord <-  tax_glom(PSHigh, "order", NArm = F)
+summarize_phyloseq(PS.Ord)
+
+PS.Phy <-  tax_glom(PSHigh, "phylum", NArm = TRUE)
+summarize_phyloseq(PS.Phy)
+
+###Summarize sequencing depths 
+sdt <- data.table(as(sample_data(PSHigh), "data.frame"),
+                  TotalReads= sample_sums(PSHigh), keep.rownames = T)
+
+
+sample_data(PS)$dpi <- as.factor(sample_data(PS)$dpi)
+
+plot_bar(PS, fill="phylum") + facet_wrap(~dpi, scales= "free_x", nrow=1)
+plot_richness(PS, x="dpi", color="dpi", measures=c("Chao1", "Shannon", "Simpson"))+ 
   geom_boxplot()+
   theme_bw()
 
-#alphaDiv <- phyloseq::estimate_richness(PS1)
+alphaDiv <- phyloseq::estimate_richness(PS)
 
 #eveAll <- evenness(PS1, c("pielou", "simpson", "evar", "bulla"))
 
@@ -97,7 +183,7 @@ plot_richness(PS1, x="dpi", color="dpi", measures=c("Chao1", "Shannon", "Simpson
 #pairwise.wilcox.test(alphaDiv$Shannon, sample_data(PS1)$dpi)
 
 #Beta diversity 
-#dis <- phyloseq::distance(PS1, method="bray")
+dis <- phyloseq::distance(PS, method="bray")
 #ordi <- ordinate(PS1, method="PCoA", distance="bray")
 #beta.plot <- plot_ordination(PS1, ordi, color="dpi")+
 #  scale_color_gradient(low="blue", high="red", name= "Mouse genotype\n(Hybrid Index)")+
@@ -145,8 +231,8 @@ grid.arrange(g,h,i, ncol= 1, nrow= 3)
 dev.off()
 
 ###Summarize seq depth 
-sdt <- data.table(as(sample_data(PS1), "data.frame"),
-                  TotalReads= sample_sums(PS1), keep.rownames = T)
+sdt <- data.table(as(sample_data(PS), "data.frame"),
+                  TotalReads= sample_sums(PS), keep.rownames = T)
 
 setnames(sdt, "rn", "Sample_ID")
 
@@ -175,11 +261,25 @@ data.inf.exp%>%
   distinct()-> data.inf.exp
 
 sdt<- join(sdt, data.inf.exp, by="labels")
-####OPG vs reads Eimeria 
-opgre <- ggplot(sdt, aes(OPG, ReadsEim))+
+
+##Get single marker data (18S)
+PS1.18S<- readRDS("/SAN/Victors_playground/Eimeria_microbiome/PS1_18S.Rds")
+
+PS.18S.Eim <- subset_taxa(PS1.18S, genus%in%"Eimeria")
+sdt18SEim <- data.table(as(sample_data(PS.18S.Eim), "data.frame"),
+                        ReadsEim18S= sample_sums(PS.18S.Eim), keep.rownames = T)
+
+
+sdt18SEim <- dplyr::select(sdt18SEim, 5,57)
+
+sdt <- plyr::join(sdt, sdt18SEim, by= "labels")
+
+####OPG vs reads Eimeria (Multiamplicon) 
+sdt%>%
+  ggplot(aes(OPG, ReadsEim))+
   geom_smooth(method = lm)+
   scale_x_log10(name = "log10 Oocyst per gram feces (Flotation)")+
-  scale_y_log10("log10 Sequence reads count (Eimeria)")+
+  scale_y_log10("log10 Sequence reads count Multiamplicon (Eimeria)")+
   geom_jitter(shape=21, position=position_jitter(0.2), size=5, aes(fill= dpi), color= "black")+
   labs(tag= "A)")+
   theme_bw()+
@@ -187,21 +287,26 @@ opgre <- ggplot(sdt, aes(OPG, ReadsEim))+
   #facet_wrap(~dpi) +
   stat_cor(label.x = 5.5, label.y = 1.25, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
   stat_regline_equation(label.x = 5.5, label.y = 1.5)+
-  stat_cor(label.x = 5.5,  label.y = 1,method = "spearman")
+  stat_cor(label.x = 5.5,  label.y = 1,method = "spearman")-> opgrem
 
-opgea <- ggplot(sdt, aes(OPG, Eimeria_abundance))+
+####OPG vs reads Eimeria (Single amplicon) 
+sdt%>%
+  ggplot(aes(OPG, ReadsEim18S))+
   geom_smooth(method = lm)+
   scale_x_log10(name = "log10 Oocyst per gram feces (Flotation)")+
-  scale_y_continuous("Relative abundance of Eimeria (Sequencing reads)")+
+  scale_y_log10("log10 Sequence reads count 18S (Eimeria)")+
   geom_jitter(shape=21, position=position_jitter(0.2), size=5, aes(fill= dpi), color= "black")+
   labs(tag= "B)")+
   theme_bw()+
   theme(text = element_text(size=16))+
-  stat_cor(label.x = 5.5, label.y = 0.1, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
-  stat_regline_equation(label.x = 5.5, label.y = 0.2)+
-  stat_cor(label.x = 5.5,  label.y = 0.15,method = "spearman")
+  #facet_wrap(~dpi) +
+  stat_cor(label.x = 5.5, label.y = 1.25, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
+  stat_regline_equation(label.x = 5.5, label.y = 1.5)+
+  stat_cor(label.x = 5.5,  label.y = 1,method = "spearman")-> opgres
 
-opgqpcr <- ggplot(sdt, aes(OPG, Qty_mean))+
+####OPG vs qPCR 
+sdt%>%
+  ggplot(aes(OPG, Qty_mean))+
   geom_smooth(method = lm)+
   scale_x_log10(name = "log10 Oocyst per gram feces (Flotation)")+
   scale_y_log10(name = "log10 Number of Eimeria Oocysts (qPCR)")+
@@ -211,19 +316,62 @@ opgqpcr <- ggplot(sdt, aes(OPG, Qty_mean))+
   theme(text = element_text(size=16))+
   stat_cor(label.x = 5.5, label.y = 1.5, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
   stat_regline_equation(label.x = 5.5, label.y = 2)+
-  stat_cor(label.x = 5.5,  label.y = 1,method = "spearman")
+  stat_cor(label.x = 5.5,  label.y = 1,method = "spearman")-> opgqpcr
 
-qpcrre <- ggplot(sdt, aes(Qty_mean, ReadsEim))+
+####qPCR vs Multiamplicon
+sdt%>%
+  ggplot(aes(Qty_mean, ReadsEim))+
   geom_smooth(method = lm)+
   scale_x_log10(name = "log10 Number of Eimeria Oocysts (qPCR)")+
-  scale_y_log10(name = "log10 Sequence reads count (Eimeria)")+
+  scale_y_log10(name = "log10 Sequence reads count Multiamplicon (Eimeria)")+
   geom_jitter(shape=21, position=position_jitter(0.2), size=5, aes(fill= dpi), color= "black")+
-  labs(tag= "C)")+
+  labs(tag= "D)")+
   theme_bw()+
   theme(text = element_text(size=16))+
-  stat_cor(label.x = 4.5, label.y = 0.75, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
-  stat_regline_equation(label.x = 4.5, label.y = 1)+
-  stat_cor(label.x = 4.5,  label.y = 0.5,method = "spearman")
+  stat_cor(label.x = 4.0, label.y = 0.75, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
+  stat_regline_equation(label.x = 4.0, label.y = 1)+
+  stat_cor(label.x = 4.0,  label.y = 0.5,method = "spearman")-> qpcrrem
+
+####qPCR vs Single amplicon
+sdt%>%
+  ggplot(aes(Qty_mean, ReadsEim18S))+
+  geom_smooth(method = lm)+
+  scale_x_log10(name = "log10 Number of Eimeria Oocysts (qPCR)")+
+  scale_y_log10(name = "log10 Sequence reads count 18S (Eimeria)")+
+  geom_jitter(shape=21, position=position_jitter(0.2), size=5, aes(fill= dpi), color= "black")+
+  labs(tag= "E)")+
+  theme_bw()+
+  theme(text = element_text(size=16))+
+  stat_cor(label.x = 4.0, label.y = 1.75, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
+  stat_regline_equation(label.x = 4.0, label.y = 2)+
+  stat_cor(label.x = 4.0,  label.y = 1.5,method = "spearman")-> qpcrres
+
+####Multiamplicon vs Single amplicon
+sdt%>%
+  ggplot(aes(ReadsEim18S, ReadsEim))+
+  geom_smooth(method = lm)+
+  scale_x_log10(name = "log10 Sequence reads count Multiamplicon (Eimeria)")+
+  scale_y_log10(name = "log10 Sequence reads count 18S (Eimeria)")+
+  geom_jitter(shape=21, position=position_jitter(0.2), size=5, aes(fill= dpi), color= "black")+
+  labs(tag= "F)")+
+  theme_bw()+
+  theme(text = element_text(size=16))+
+  stat_cor(label.x = 3.0, label.y = 0.75, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
+  stat_regline_equation(label.x = 3.0, label.y = 1)+
+  stat_cor(label.x = 3.0,  label.y = 0.5,method = "spearman")-> remres
+
+#opgea <- ggplot(sdt, aes(OPG, Eimeria_abundance))+
+#  geom_smooth(method = lm)+
+# scale_x_log10(name = "log10 Oocyst per gram feces (Flotation)")+
+#  scale_y_continuous("Relative abundance of Eimeria (Sequencing reads)")+
+#  geom_jitter(shape=21, position=position_jitter(0.2), size=5, aes(fill= dpi), color= "black")+
+#  labs(tag= "B)")+
+#  theme_bw()+
+#  theme(text = element_text(size=16))+
+#  stat_cor(label.x = 5.5, label.y = 0.1, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
+#  stat_regline_equation(label.x = 5.5, label.y = 0.2)+
+#  stat_cor(label.x = 5.5,  label.y = 0.15,method = "spearman")
+
 
 pdf(file = "~/AA_Microbiome/Figures/OPG_qPCR_Eimeria_Reads_Multimarker.pdf", width = 15, height = 20)
 grid.arrange(opgre,opgqpcr, qpcrre, ncol= 1, nrow= 3)
@@ -233,26 +381,33 @@ pdf(file = "~/AA_Microbiome/Figures/OPG_Eimeria_Reads_Multimarker.pdf", width = 
 grid.arrange(opgre,opgea, ncol= 1, nrow= 2)
 dev.off()
 
+pdf(file = "~/AA_Microbiome/Figures/Eimeria_quant_methods.pdf", width = 15, height = 20)
+grid.arrange(opgrem, qpcrrem, opgres, qpcrres, opgqpcr, remres, ncol= 2, nrow= 3)
+dev.off()
+
+
 ###Course of infection 
 #compare_means(OPG ~ dpi,  data = sdt) #Adjust table to run it
 
-a<- ggplot(sdt, aes(dpi, OPG))+
+sdt%>%
+  ggplot(aes(dpi, OPG))+
   geom_boxplot()+
   xlab("Day post infection")+
   scale_y_log10("log10 Oocyst per gram feces (Flotation)")+
   geom_jitter(shape=21, position=position_jitter(0.2), size=2.5, aes(fill= dpi), color= "black")+
   labs(tag= "A)")+
   theme_bw()+
-  theme(text = element_text(size=16))
+  theme(text = element_text(size=16))-> a
 
-b<- ggplot(sdt, aes(dpi, ReadsEim))+
+sdt%>%
+  ggplot(aes(dpi, ReadsEim))+
   geom_boxplot()+
   xlab("Day post infection")+
-  scale_y_log10("log10 Sequence reads count (Eimeria)")+
+  scale_y_log10("log10 Sequence reads count \n Multiamplicon (Eimeria)")+
   geom_jitter(shape=21, position=position_jitter(0.2), size=2.5, aes(fill= dpi), color= "black")+
   labs(tag= "B)")+
   theme_bw()+
-  theme(text = element_text(size=16))
+  theme(text = element_text(size=16))-> b
 
 sdt%>%
   ggplot(aes(dpi, Qty_mean))+
@@ -264,17 +419,18 @@ sdt%>%
   theme_bw()+
   theme(text = element_text(size=16))-> c
 
-c<- ggplot(sdt, aes(dpi, Eimeria_abundance))+
+sdt%>%
+  ggplot(aes(dpi, ReadsEim18S))+
   geom_boxplot()+
   xlab("Day post infection")+
-  ylab("Relative proportion of Eimeria assigned reads")+
+  scale_y_log10("log10 Sequence reads count 18S (Eimeria)")+
   geom_jitter(shape=21, position=position_jitter(0.2), size=2.5, aes(fill= dpi), color= "black")+
-  labs(tag= "C)")+
+  labs(tag= "D)")+
   theme_bw()+
-  theme(text = element_text(size=16))
+  theme(text = element_text(size=16))-> d
 
-pdf(file = "~/AA_Microbiome/Figures/Course_of_Eimeria_Infection_Multimarker_2.pdf", width = 15, height = 20)
-grid.arrange(a,b,c, ncol= 1, nrow= 3)
+pdf(file = "~/AA_Microbiome/Figures/Course_of_Eimeria_Infection_Multimethods.pdf", width = 15, height = 10)
+grid.arrange(a,c,b,d, ncol= 2, nrow= 2)
 dev.off()
 
 ##For time series graph (under construction)
