@@ -388,6 +388,9 @@ dev.off()
 
 ###Course of infection 
 #compare_means(OPG ~ dpi,  data = sdt) #Adjust table to run it
+sdt%>%
+  dplyr::arrange(dpi)%>%
+  filter(dpi%in%c("4", "8"))->comp ##for comparison later 
 
 sdt%>%
   ggplot(aes(dpi, OPG))+
@@ -400,6 +403,27 @@ sdt%>%
   theme(text = element_text(size=16))-> a
 
 sdt%>%
+  dplyr::arrange(dpi)%>%
+  ggplot(aes(as.numeric(as.character(dpi)), OPG, colour= EH_ID))+
+  xlab("Day post infection")+
+  scale_y_log10("log10 Oocyst per gram feces (Flotation)")+
+  scale_x_continuous(breaks = c(0,1,2,3,4,5,6,7,8,9,10))+
+  geom_line()+
+  geom_jitter(shape=21, position=position_jitter(0.0), size=2.5, aes(fill= EH_ID), color= "black")+
+  labs(tag= "A)")+
+  theme_bw()+
+  theme(text = element_text(size=16))+
+  stat_smooth(color= "red", method = "loess")-> a2
+
+ggpaired(comp, x= "dpi", y= "OPG",line.color= "gray", line.size= 0.4, color= "dpi")+
+  scale_y_log10("log10 Oocyst per gram feces (Flotation)")+
+  xlab("Day post infection")+
+  scale_color_npg()+
+  labs(tag= "A)")+
+  theme_bw()+
+  theme(text = element_text(size=16)) -> a3
+
+sdt%>%
   ggplot(aes(dpi, ReadsEim))+
   geom_boxplot()+
   xlab("Day post infection")+
@@ -408,6 +432,27 @@ sdt%>%
   labs(tag= "B)")+
   theme_bw()+
   theme(text = element_text(size=16))-> b
+
+sdt%>%
+  dplyr::arrange(dpi)%>%
+  ggplot(aes(as.numeric(as.character(dpi)), ReadsEim, colour= EH_ID))+
+  xlab("Day post infection")+
+  scale_y_log10("log10 Sequence reads count \n Multiamplicon (Eimeria)")+
+  scale_x_continuous(breaks = c(0,1,2,3,4,5,6,7,8,9,10))+
+  geom_line()+
+  geom_jitter(shape=21, position=position_jitter(0.0), size=2.5, aes(fill= EH_ID), color= "black")+
+  labs(tag= "B)")+
+  theme_bw()+
+  theme(text = element_text(size=16))+
+  stat_smooth(color= "red", method = "loess")-> b2
+
+ggpaired(comp, x= "dpi", y= "ReadsEim",line.color= "gray", line.size= 0.4, color= "dpi")+
+  scale_y_log10("log10 Sequence reads count \n Multiamplicon (Eimeria)")+
+  xlab("Day post infection")+
+  scale_color_npg()+
+  labs(tag= "B)")+
+  theme_bw()+
+  theme(text = element_text(size=16))-> b3
 
 sdt%>%
   ggplot(aes(dpi, Qty_mean))+
@@ -420,6 +465,27 @@ sdt%>%
   theme(text = element_text(size=16))-> c
 
 sdt%>%
+  dplyr::arrange(dpi)%>%
+  ggplot(aes(as.numeric(as.character(dpi)), Qty_mean, colour= EH_ID))+
+  xlab("Day post infection")+
+  scale_y_log10("log10 Number of Eimeria Oocysts (qPCR)")+
+  scale_x_continuous(breaks = c(0,1,2,3,4,5,6,7,8,9,10))+
+  geom_line()+
+  geom_jitter(shape=21, position=position_jitter(0.0), size=2.5, aes(fill= EH_ID), color= "black")+
+  labs(tag= "C)")+
+  theme_bw()+
+  theme(text = element_text(size=16))+
+  stat_smooth(color= "red", method = "loess")-> c2
+
+ggpaired(comp, x= "dpi", y= "Qty_mean",line.color= "gray", line.size= 0.4, color= "dpi")+
+  scale_y_log10("log10 Number of Eimeria Oocysts (qPCR)")+
+  xlab("Day post infection")+
+  scale_color_npg()+
+  labs(tag= "C)")+
+  theme_bw()+
+  theme(text = element_text(size=16))-> c3
+
+sdt%>%
   ggplot(aes(dpi, ReadsEim18S))+
   geom_boxplot()+
   xlab("Day post infection")+
@@ -429,10 +495,38 @@ sdt%>%
   theme_bw()+
   theme(text = element_text(size=16))-> d
 
+sdt%>%
+  dplyr::arrange(dpi)%>%
+  ggplot(aes(as.numeric(as.character(dpi)), ReadsEim18S, colour= EH_ID))+
+  xlab("Day post infection")+
+  scale_y_log10("log10 Sequence reads count 18S (Eimeria)")+
+  scale_x_continuous(breaks = c(0,1,2,3,4,5,6,7,8,9,10))+
+  geom_line()+
+  geom_jitter(shape=21, position=position_jitter(0.0), size=2.5, aes(fill= EH_ID), color= "black")+
+  labs(tag= "D)")+
+  theme_bw()+
+  theme(text = element_text(size=16))+
+  stat_smooth(color= "red", method = "loess")-> d2
+
+ggpaired(comp, x= "dpi", y= "ReadsEim18S",line.color= "gray", line.size= 0.4, color= "dpi")+
+  scale_y_log10("log10 Sequence reads count 18S (Eimeria)")+
+  xlab("Day post infection")+
+  scale_color_npg()+
+  labs(tag= "D)")+
+  theme_bw()+
+  theme(text = element_text(size=16))-> d3
+
 pdf(file = "~/AA_Microbiome/Figures/Course_of_Eimeria_Infection_Multimethods.pdf", width = 15, height = 10)
 grid.arrange(a,c,b,d, ncol= 2, nrow= 2)
 dev.off()
 
+pdf(file = "~/AA_Microbiome/Figures/Course_of_Eimeria_Infection_Multimethods_sample.pdf", width = 15, height = 10)
+grid.arrange(a2,c2,b2,d2, ncol= 2, nrow= 2)
+dev.off()
+
+pdf(file = "~/AA_Microbiome/Figures/Course_of_Eimeria_Infection_dpi_comparison.pdf", width = 15, height = 10)
+grid.arrange(a3,c3,b3,d3, ncol= 2, nrow= 2)
+dev.off()
 ##For time series graph (under construction)
 require("reshape")
 
