@@ -12,33 +12,51 @@ library("grid")
 library("lattice")
 library("pheatmap")
 library("viridisLite")
-library("rcompanion")
-library("FSA")
+#library("rcompanion")
+#library("FSA")
 library("phyloseq")
 library("microbiome")
 library("grid")
 library("ggsci")
+library("knitr")
+library("kableExtra")
 
 if(!exists("PS")){
-  source("MA_Multimarker.R")
+  source("2_MA_Multimarker.R")
+}else{
+  ##############Load data######################
+  PS<- readRDS(file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_All.Rds")  
 }
 
-##############Load data######################
-#PS <- readRDS(file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_TestRun.Rds") ##Data from TestRun 
-#PS <-  readRDS(file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_FullRun_1.Rds")
-
-PS<- readRDS(file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_All.Rds")
-###General check of data
-summarize_phyloseq(PS) ##Change dataset 
+############# General overview ##################
+summarize_phyloseq(PS) 
 rank_names(PS)
 tax_table(PS)
 
+############# Filtering ####################### 
+###Step 1) Eliminate samples with 0 read counts
+PS <- prune_samples(sample_sums(PS)>0, PS)
+
+###Step 2) Eliminate reads Unassigned at Superkingdom level
+###Check taxa
+table(tax_table(PS)[, "superkingdom"], exclude = NULL)
+### Relative low proportion just 269 ASV's are not assigned as Eukaryotes or Bacteria
+#kable(table(tax_table(PS)[, "superkingdom"], exclude = NULL), format = "html") 
+PS <- subset_taxa(PS, !is.na(superkingdom) & !superkingdom %in% c("", "uncharacterized"))
+
+###Step 3) Eliminate reads from host DNA 
+##Check for host DNA reads
+## Host read numbers
+hist(rowSums(otu_table(subset_taxa(PS, genus%in%"Mus"))))
+sum(otu_table(subset_taxa(PS, genus%in%"Mus")))/sum(otu_table(PS))
+###Just 1.22% of Mus DNA 
+###Eliminate reads assigned as "Mus"
+#PS <- subset_taxa(PS, genus!= "Mus") ##Taxa en OTU table decreased dramatically, check and then apply 
+
+###Step 4) Taxonomic filter (eliminate spurius taxa)
 ##Taxonomic filtering
 # Create table, number of features for each phyla
 table(tax_table(PS)[, "phylum"], exclude = NULL)
-
-###Remove features with ambiguous phylum annotation
-PS <- subset_taxa(PS, !is.na(phylum) & !phylum %in% c("", "uncharacterized"))
 
 # Compute prevalence of each feature, store as data.frame
 PrevAll <- apply(X = otu_table(PS),
@@ -52,84 +70,93 @@ PrevAll <- data.frame(Prevalence = PrevAll,
 
 plyr::ddply(PrevAll, "phylum", function(df1){cbind(mean(df1$Prevalence),sum(df1$Prevalence))})
 
-# Define phyla to filter (present in less than 1% of samples)
-filterPhyla <- c("Candidatus Melainabacteria", "Chlorophyta", "Fusobacteria") ###For the full dataset
+# Define phyla to filter (present in less than 5 samples)
+filterPhyla <- c("Tardigrada", "Microsporidia", "Fusobacteria", "Equinodermata", "Cryptomycota", "Candidatus Saccharibacteria") ###For the full dataset
 
 # Filter entries with unidentified Phylum.
-PS1 <- subset_taxa(PS, !phylum %in% filterPhyla)
+PS <- subset_taxa(PS, !phylum %in% filterPhyla)
+rm(PrevAll, filterPhyla)
 
-####Prevalence filtering 
-# Subset to the remaining phyla
-PrevAll2 <- subset(PrevAll, phylum %in% get_taxa_unique(PS1, "phylum"))
-ggplot(PrevAll2, aes(TotalAbundance, Prevalence / nsamples(PS),color=phylum)) +
-  # Include a guess for parameter
-  geom_hline(yintercept = 0.02, alpha = 0.5, linetype = 2) +  geom_point(size = 2, alpha = 0.7) +
-  scale_x_log10() +  xlab("Total Abundance (read count)") + ylab("Prevalence [Frac. Samples]") +
-  facet_wrap(~phylum) + theme(legend.position="none")
+###Check how many Reads have every superkingdom
+###Read counts 
+counts_multi <- data.frame(rowSums(otu_table(PS)))
+counts_multi[,2] <- rownames(counts_multi)
+###Bacterial and Eukaryotic counts
+counts_multi[,3] <- as.data.frame(rowSums(otu_table(subset_taxa(PS, superkingdom%in%"Bacteria"))))
+counts_multi[,4] <- as.data.frame(rowSums(otu_table(subset_taxa(PS, superkingdom%in%"Eukaryota"))))
+colnames(counts_multi) <- c("Read_counts", "labels", "Bacteria_reads", "Eukaryota_reads")
+rownames(counts_multi) <- c(1:nrow(counts_multi))
+counts_multi <- data.frame(labels = counts_multi$labels, 
+                             Read_counts = counts_multi$Read_counts,
+                             Bacteria_reads= counts_multi$Bacteria_reads,
+                             Eukaryota_reads= counts_multi$Eukaryota_reads)
 
-# Define prevalence threshold as 2% of total samples
-prevalenceThreshold <- 0.02 * nsamples(PS)
-prevalenceThreshold
+hist(counts_multi$Read_counts)
+summary(counts_multi$Read_counts)
+sum(counts_multi$Read_counts)
+sum(counts_multi$Bacteria_reads)
+sum(counts_multi$Eukaryota_reads)
 
-# How many genera would be present after filtering?
-length(get_taxa_unique(PS, taxonomic.rank = "genus"))
+## Bacteria reads proportion
+sum(otu_table(subset_taxa(PS, superkingdom %in% "Bacteria")))/sum(otu_table(PS))
+## Eukaryote reads proportion 
+sum(otu_table(subset_taxa(PS, superkingdom %in% "Eukaryota")))/sum(otu_table(PS))
+## ASVs by superkingdom
+table(tax_table(PS)[, "superkingdom"], exclude = NULL)
 
+####Taxa detected
+as.data.frame(table(tax_table(PS)[, "phylum"]))
+as.data.frame(table(tax_table(PS)[, "genus"]))
+
+## Merge ASVs that have the same taxonomy at a certain taxonomic rank (in this case phylum and genus)
+PS.Gen <-  tax_glom(PSHigh, "genus", NArm = F)
+summarize_phyloseq(PS.Gen)
+
+PS.Fam<-  tax_glom(PSHigh, "family", NArm = F)
+summarize_phyloseq(PS.Fam)
+
+PS.Ord <-  tax_glom(PSHigh, "order", NArm = F)
+summarize_phyloseq(PS.Ord)
+
+PS.Phy <-  tax_glom(PSHigh, "phylum", NArm = TRUE)
+summarize_phyloseq(PS.Phy)
 
 ###Seq depths
-qplot(log10(rowSums(otu_table(PS1))),binwidth=0.2) +
+qplot(log10(rowSums(otu_table(PS))),binwidth=0.2) +
   xlab("Log10 counts-per-sample")+ ylab("Count")+
   theme_bw()+
   labs(tag = "A)")
 
+###Summarize sequencing depths 
+sample_data(PS)$dpi <- as.factor(sample_data(PS)$dpi)
+
+sdt <- data.table(as(sample_data(PS), "data.frame"),
+                  TotalReads= sample_sums(PS), keep.rownames = T)
+
+setnames(sdt, "rn", "Sample_ID")
+
+##Check for Eimeria
+PS.eimeria <- subset_taxa(PS, genus%in%"Eimeria")
+
+###Eimeria 
+sdtEim <- data.table(as(sample_data(PS.eimeria), "data.frame"),
+                     ReadsEim= sample_sums(PS.eimeria), keep.rownames = T)
+
+
+sdtEim <- dplyr::select(sdtEim, 5,57)
+
+sdt <- plyr::join(sdt, sdtEim, by= "labels")
+
+sdt %>%
+  mutate(Eimeria_abundance = sdt$ReadsEim/sdt$TotalReads) -> sdt ### Add a new variable that will contain the sum of all the sequencing reads by primer pair
+
+####For here one should go into a different code 
+
+
+
 ####Normalizing data :S 
 PSlog <- transform_sample_counts(PS, function(x) log(1 + x))
 
-##Plot abundances (alpha diversity)
-###Let's eliminate samples with 0 read counts
-PS <- prune_samples(sample_sums(PS)>0, PS)
-
-############# General overview ##################
-###Check taxa
-table(tax_table(PS)[, "superkingdom"], exclude = NULL) ## 476 ASV's are not assigned as Eukaryotes or Bacteria
-
-###Check how many reads have every superkingdom
-###Raw counts 
-rawcounts_InfEx <- data.frame(rowSums(otu_table(PS)))
-rawcounts_InfEx[,2] <- rownames(rawcounts_InfEx)
-###Bacterial and Eukaryotic counts
-rawcounts_InfEx[,3] <- as.data.frame(rowSums(otu_table(subset_taxa(PS, superkingdom%in%"Bacteria"))))
-rawcounts_InfEx[,4] <- as.data.frame(rowSums(otu_table(subset_taxa(PS, superkingdom%in%"Eukaryota"))))
-#rawcounts_InfEx[,5] <- as.data.frame(rowSums(otu_table(subset_taxa(PS, superkingdom%in%NA))))
-colnames(rawcounts_InfEx) <- c("Raw_counts", "Mouse_ID", "Bacteria_reads", "Eukaryota_reads")
-rownames(rawcounts_InfEx) <- c(1:nrow(rawcounts_InfEx))
-rawcounts_InfEx <- data.frame(Mouse_ID = rawcounts_InfEx$Mouse_ID, 
-                             Raw_counts = rawcounts_InfEx$Raw_counts,
-                             Bacteria_reads= rawcounts_InfEx$Bacteria_reads,
-                             Eukaryota_reads= rawcounts_InfEx$Eukaryota_reads)#,
-#Unassigned_reads= rawcounts_InfEx$Unassigned_reads) 
-
-hist(rawcounts_InfEx$Raw_counts)
-summary(rawcounts_InfEx$Raw_counts)
-sum(rawcounts_InfEx$Raw_counts)
-
-## Bacteria read numbes 
-sum(otu_table(subset_taxa(PS, superkingdom %in% "Bacteria")))
-sum(otu_table(subset_taxa(PS, superkingdom %in% "Bacteria")))/sum(otu_table(PS))
-## Eukaryote read numbers 
-sum(otu_table(subset_taxa(PS, superkingdom %in% "Eukaryota")))
-sum(otu_table(subset_taxa(PS, superkingdom %in% "Eukaryota")))/sum(otu_table(PS))
-## Host read numbers
-hist(rowSums(otu_table(subset_taxa(PS, genus%in%"Mus"))))
-
-sum(otu_table(subset_taxa(PS, genus%in%"Mus")))/sum(otu_table(PS))
-###A lot of Mus :(
-
-###Eliminate reads assigned as "Mus"
-PS <- subset_taxa(PS, genus!= "Mus") ##Eliminate samples :S 
-summarize_phyloseq(PS)
-####Taxa detected
-as.data.frame(table(tax_table(PS)[, "phylum"]))
-as.data.frame(table(tax_table(PS)[, "genus"]))
 
 ###Rarefaction curve 
 #rarcurv <- vegan::rarecurve(otu_table(PS),
@@ -150,7 +177,6 @@ table(tax_table(PSHigh)[, "superkingdom"], exclude = NULL)
 
 #rarcurv2 <- vegan::rarecurve(otu_table(PSHigh),
 #                             label = F)
-
 ## Merge ASVs that have the same taxonomy at a certain taxonomic rank (in this case phylum and genus)
 PS.Gen <-  tax_glom(PSHigh, "genus", NArm = F)
 summarize_phyloseq(PS.Gen)
@@ -163,13 +189,6 @@ summarize_phyloseq(PS.Ord)
 
 PS.Phy <-  tax_glom(PSHigh, "phylum", NArm = TRUE)
 summarize_phyloseq(PS.Phy)
-
-###Summarize sequencing depths 
-sdt <- data.table(as(sample_data(PSHigh), "data.frame"),
-                  TotalReads= sample_sums(PSHigh), keep.rownames = T)
-
-
-sample_data(PS)$dpi <- as.factor(sample_data(PS)$dpi)
 
 plot_bar(PS, fill="phylum") + facet_wrap(~dpi, scales= "free_x", nrow=1)
 plot_richness(PS, x="dpi", color="dpi", measures=c("Chao1", "Shannon", "Simpson"))+ 
@@ -231,26 +250,6 @@ pdf(file = "~/AA_Microbiome/Figures/Composition_Infection.pdf", width = 15, heig
 grid.arrange(g,h,i, ncol= 1, nrow= 3)
 dev.off()
 
-###Summarize seq depth 
-sdt <- data.table(as(sample_data(PS), "data.frame"),
-                  TotalReads= sample_sums(PS), keep.rownames = T)
-
-setnames(sdt, "rn", "Sample_ID")
-
-##Check for Eimeria
-PS.eimeria <- subset_taxa(PS1, genus%in%"Eimeria")
-
-###Eimeria 
-sdtEim <- data.table(as(sample_data(PS.eimeria), "data.frame"),
-                     ReadsEim= sample_sums(PS.eimeria), keep.rownames = T)
-
-
-sdtEim <- dplyr::select(sdtEim, 5,57)
-
-sdt <- plyr::join(sdt, sdtEim, by= "labels")
-
-sdt %>%
-  mutate(Eimeria_abundance = sdt$ReadsEim/sdt$TotalReads) -> sdt ### Add a new variable that will contain the sum of all the sequencing reads by primer pair
 
 ###Incorporate qPCR information
 if(!exists("data.inf.exp")){
