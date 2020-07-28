@@ -17,6 +17,7 @@ library("FSA")
 library("phyloseq")
 library("microbiome")
 library("grid")
+library("ggsci")
 
 if(!exists("PS")){
   source("MA_Multimarker.R")
@@ -276,6 +277,7 @@ sdt <- plyr::join(sdt, sdt18SEim, by= "labels")
 
 ####OPG vs reads Eimeria (Multiamplicon) 
 sdt%>%
+  distinct(Sample_ID, .keep_all=T)%>%
   ggplot(aes(OPG, ReadsEim))+
   geom_smooth(method = lm)+
   scale_x_log10(name = "log10 Oocyst per gram feces (Flotation)")+
@@ -291,6 +293,7 @@ sdt%>%
 
 ####OPG vs reads Eimeria (Single amplicon) 
 sdt%>%
+  distinct(Sample_ID, .keep_all=T)%>%
   ggplot(aes(OPG, ReadsEim18S))+
   geom_smooth(method = lm)+
   scale_x_log10(name = "log10 Oocyst per gram feces (Flotation)")+
@@ -306,6 +309,7 @@ sdt%>%
 
 ####OPG vs qPCR 
 sdt%>%
+  distinct(Sample_ID, .keep_all=T)%>%
   ggplot(aes(OPG, Qty_mean))+
   geom_smooth(method = lm)+
   scale_x_log10(name = "log10 Oocyst per gram feces (Flotation)")+
@@ -318,8 +322,25 @@ sdt%>%
   stat_regline_equation(label.x = 5.5, label.y = 2)+
   stat_cor(label.x = 5.5,  label.y = 1,method = "spearman")-> opgqpcr
 
+sdt%>%
+  distinct(Sample_ID, .keep_all=T)%>%
+  ggplot(aes(Qty_mean, OPG))+
+  geom_smooth(method = lm)+
+  scale_y_log10(name = "log10 Oocyst per gram feces (Flotation)")+
+  scale_x_log10(name = "log10 Number of Eimeria Oocysts (qPCR)")+
+  geom_jitter(shape=21, position=position_jitter(0.2), size=5, aes(fill= dpi), color= "black")+
+  labs(tag= "C)")+
+  theme_bw()+
+  theme(text = element_text(size=16))+
+  stat_cor(label.x = 4.5, label.y = 2.5, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
+  stat_regline_equation(label.x = 4.5, label.y = 3)+
+  stat_cor(label.x = 4.5,  label.y = 2,method = "spearman")
+
+summary(lm(OPG~Qty_mean*dpi,  data = sdt))
+  
 ####qPCR vs Multiamplicon
 sdt%>%
+  distinct(Sample_ID, .keep_all=T)%>%
   ggplot(aes(Qty_mean, ReadsEim))+
   geom_smooth(method = lm)+
   scale_x_log10(name = "log10 Number of Eimeria Oocysts (qPCR)")+
@@ -334,6 +355,7 @@ sdt%>%
 
 ####qPCR vs Single amplicon
 sdt%>%
+  distinct(Sample_ID, .keep_all=T)%>%
   ggplot(aes(Qty_mean, ReadsEim18S))+
   geom_smooth(method = lm)+
   scale_x_log10(name = "log10 Number of Eimeria Oocysts (qPCR)")+
@@ -348,6 +370,7 @@ sdt%>%
 
 ####Multiamplicon vs Single amplicon
 sdt%>%
+  distinct(Sample_ID, .keep_all=T)%>%
   ggplot(aes(ReadsEim18S, ReadsEim))+
   geom_smooth(method = lm)+
   scale_x_log10(name = "log10 Sequence reads count Multiamplicon (Eimeria)")+
@@ -389,10 +412,12 @@ dev.off()
 ###Course of infection 
 #compare_means(OPG ~ dpi,  data = sdt) #Adjust table to run it
 sdt%>%
+  distinct(Sample_ID, .keep_all=T)%>%
   dplyr::arrange(dpi)%>%
   filter(dpi%in%c("4", "8"))->comp ##for comparison later 
 
 sdt%>%
+  distinct(Sample_ID, .keep_all=T)%>%
   ggplot(aes(dpi, OPG))+
   geom_boxplot()+
   xlab("Day post infection")+
@@ -403,17 +428,18 @@ sdt%>%
   theme(text = element_text(size=16))-> a
 
 sdt%>%
+  distinct(Sample_ID, .keep_all=T)%>%
   dplyr::arrange(dpi)%>%
   ggplot(aes(as.numeric(as.character(dpi)), OPG, colour= EH_ID))+
   xlab("Day post infection")+
   scale_y_log10("log10 Oocyst per gram feces (Flotation)")+
   scale_x_continuous(breaks = c(0,1,2,3,4,5,6,7,8,9,10))+
-  geom_line()+
-  geom_jitter(shape=21, position=position_jitter(0.0), size=2.5, aes(fill= EH_ID), color= "black")+
+  geom_line(alpha= 0.5)+
+  geom_jitter(shape=21, position=position_jitter(0.0), size=2.5, aes(fill= EH_ID), color= "black", alpha= 0.5)+
   labs(tag= "A)")+
   theme_bw()+
   theme(text = element_text(size=16))+
-  stat_smooth(color= "red", method = "loess")-> a2
+  stat_smooth(color= "black", method = "loess")-> a2
 
 ggpaired(comp, x= "dpi", y= "OPG",line.color= "gray", line.size= 0.4, color= "dpi")+
   scale_y_log10("log10 Oocyst per gram feces (Flotation)")+
@@ -424,6 +450,7 @@ ggpaired(comp, x= "dpi", y= "OPG",line.color= "gray", line.size= 0.4, color= "dp
   theme(text = element_text(size=16)) -> a3
 
 sdt%>%
+  distinct(Sample_ID, .keep_all=T)%>%
   ggplot(aes(dpi, ReadsEim))+
   geom_boxplot()+
   xlab("Day post infection")+
@@ -434,17 +461,18 @@ sdt%>%
   theme(text = element_text(size=16))-> b
 
 sdt%>%
+  distinct(Sample_ID, .keep_all=T)%>%
   dplyr::arrange(dpi)%>%
   ggplot(aes(as.numeric(as.character(dpi)), ReadsEim, colour= EH_ID))+
   xlab("Day post infection")+
   scale_y_log10("log10 Sequence reads count \n Multiamplicon (Eimeria)")+
   scale_x_continuous(breaks = c(0,1,2,3,4,5,6,7,8,9,10))+
-  geom_line()+
-  geom_jitter(shape=21, position=position_jitter(0.0), size=2.5, aes(fill= EH_ID), color= "black")+
+  geom_line(alpha=0.5)+
+  geom_jitter(shape=21, position=position_jitter(0.0), size=2.5, aes(fill= EH_ID), color= "black", alpha= 0.5)+
   labs(tag= "B)")+
   theme_bw()+
   theme(text = element_text(size=16))+
-  stat_smooth(color= "red", method = "loess")-> b2
+  stat_smooth(color= "black", method = "loess")-> b2
 
 ggpaired(comp, x= "dpi", y= "ReadsEim",line.color= "gray", line.size= 0.4, color= "dpi")+
   scale_y_log10("log10 Sequence reads count \n Multiamplicon (Eimeria)")+
@@ -455,6 +483,7 @@ ggpaired(comp, x= "dpi", y= "ReadsEim",line.color= "gray", line.size= 0.4, color
   theme(text = element_text(size=16))-> b3
 
 sdt%>%
+  distinct(Sample_ID, .keep_all=T)%>%
   ggplot(aes(dpi, Qty_mean))+
   geom_boxplot()+
   xlab("Day post infection")+
@@ -465,17 +494,18 @@ sdt%>%
   theme(text = element_text(size=16))-> c
 
 sdt%>%
+  distinct(Sample_ID, .keep_all=T)%>%
   dplyr::arrange(dpi)%>%
   ggplot(aes(as.numeric(as.character(dpi)), Qty_mean, colour= EH_ID))+
   xlab("Day post infection")+
   scale_y_log10("log10 Number of Eimeria Oocysts (qPCR)")+
   scale_x_continuous(breaks = c(0,1,2,3,4,5,6,7,8,9,10))+
-  geom_line()+
-  geom_jitter(shape=21, position=position_jitter(0.0), size=2.5, aes(fill= EH_ID), color= "black")+
+  geom_line(alpha=0.5)+
+  geom_jitter(shape=21, position=position_jitter(0.0), size=2.5, aes(fill= EH_ID), color= "black", alpha= 0.5)+
   labs(tag= "C)")+
   theme_bw()+
   theme(text = element_text(size=16))+
-  stat_smooth(color= "red", method = "loess")-> c2
+  stat_smooth(color= "black", method = "loess")-> c2
 
 ggpaired(comp, x= "dpi", y= "Qty_mean",line.color= "gray", line.size= 0.4, color= "dpi")+
   scale_y_log10("log10 Number of Eimeria Oocysts (qPCR)")+
@@ -486,6 +516,7 @@ ggpaired(comp, x= "dpi", y= "Qty_mean",line.color= "gray", line.size= 0.4, color
   theme(text = element_text(size=16))-> c3
 
 sdt%>%
+  distinct(Sample_ID, .keep_all=T)%>%
   ggplot(aes(dpi, ReadsEim18S))+
   geom_boxplot()+
   xlab("Day post infection")+
@@ -496,17 +527,18 @@ sdt%>%
   theme(text = element_text(size=16))-> d
 
 sdt%>%
+  distinct(Sample_ID, .keep_all=T)%>%
   dplyr::arrange(dpi)%>%
   ggplot(aes(as.numeric(as.character(dpi)), ReadsEim18S, colour= EH_ID))+
   xlab("Day post infection")+
   scale_y_log10("log10 Sequence reads count 18S (Eimeria)")+
   scale_x_continuous(breaks = c(0,1,2,3,4,5,6,7,8,9,10))+
-  geom_line()+
-  geom_jitter(shape=21, position=position_jitter(0.0), size=2.5, aes(fill= EH_ID), color= "black")+
+  geom_line(alpha= 0.5)+
+  geom_jitter(shape=21, position=position_jitter(0.0), size=2.5, aes(fill= EH_ID), color= "black", alpha= 0.5)+
   labs(tag= "D)")+
   theme_bw()+
   theme(text = element_text(size=16))+
-  stat_smooth(color= "red", method = "loess")-> d2
+  stat_smooth(color= "black", method = "loess")-> d2
 
 ggpaired(comp, x= "dpi", y= "ReadsEim18S",line.color= "gray", line.size= 0.4, color= "dpi")+
   scale_y_log10("log10 Sequence reads count 18S (Eimeria)")+
@@ -537,6 +569,14 @@ sdt_reshape%>%
   group_by(EH_ID)%>%
   ggplot(aes(x= dpi, y= OPG))+
   geom_line()
+
+library("TSrepr")
+  
+sdt%>%
+  dplyr::group_by(EH_ID)%>%
+  dplyr::arrange(as.factor(as.character(dpi)))%>%
+  select(dpi,OPG,Qty_mean, ReadsEim, ReadsEim18S)%>%
+  filter(EH_ID%in%c("LM0206"))
 
 ###Alpha diversity along infection
 alphaDiv$labels<- rownames(alphaDiv)
