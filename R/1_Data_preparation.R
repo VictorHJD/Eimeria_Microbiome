@@ -12,8 +12,8 @@ library("grid")
 library("lattice")
 library("pheatmap")
 library("viridisLite")
-library("rcompanion")
-library("FSA")
+#library("rcompanion")
+#library("FSA")
 library("phyloseq")
 
 ##Load data
@@ -39,8 +39,13 @@ exp.des$NOTE <- NULL
   
 sample.data<- calculateOPG(sample.data = sample.data)
   
+##Check for spaces
+sample.data$EH_ID <- gsub(pattern = " ", replacement = "", x = sample.data$EH_ID)
+exp.des$EH_ID <- gsub(pattern = " ", replacement = "", x = exp.des$EH_ID)
+exp.des%>%
+  filter(!(EH_ID== "LM0205"))->exp.des ##Eliminate mouse not included in the experiment
+
 sample.data <- merge(sample.data, exp.des, by= "EH_ID", all= TRUE) ##merge sample data with genotype of mice 
-sample.data <- sample.data[-243,] ##eliminate empty row
 rownames(sample.data) <- sample.data$labels
   
 ###Estimate microbiota density (MD) from Contijoch et al. 2019
