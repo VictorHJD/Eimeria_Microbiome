@@ -3,23 +3,25 @@
 ## require(devtools)
 ## devtools::install_github("derele/MultiAmplicon", force= T)
 ## devtools::install_github("derele/dada2", force= T)
-
-library(ggplot2)
-library(MultiAmplicon)
-library(reshape)
-library(phyloseq)
-library(data.table)
-library(taxonomizr)
-library(taxize)
-library(parallel)
+library("lifecycle", lib.loc="/usr/local/lib/R/site-library") 
+library("ggplot2")
+library("MultiAmplicon")
+library("reshape")
+library("phyloseq")
+library("data.table")
+library("taxonomizr")
+library("taxize")
+library("parallel")
 
 ## re-run or use pre-computed results for different parts of the pipeline:
 ## Set to FALSE to use pre-computed and saved results, TRUE to redo analyses.
-doFilter <- TRUE
+doFilter <- FALSE
 
-doMultiAmp <- TRUE
+doMultiAmp <- FALSE
 
-doTax <- TRUE
+doTax <- FALSE
+
+doPhyloseq<- FALSE
 ## But remember: if you change the MultiAmplicon Analysis, the
 ## taxonomic annotation might be out of sync...
 
@@ -123,7 +125,7 @@ trackingF <- getPipelineSummary(MA)
 plotAmpliconNumbers(MA)
 
 ###New taxonomic assignment 
-
+if(doTax){
 MA <- blastTaxAnnot(MA,
                     db = "/SAN/db/blastdb/nt/nt",
                     negative_gilist = "/SAN/db/blastdb/uncultured.gi",
@@ -136,46 +138,69 @@ MA <- blastTaxAnnot(MA,
 
 #saveRDS(MA, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/MATax_TestRun.Rds")
 saveRDS(MA, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/MATax_FullRun_1.Rds")
-
+}else{
+  MA1 <- readRDS("/SAN/Victors_playground/Eimeria_microbiome/Multimarker/MATax_FullRun_1.Rds")
+  MA2 <- readRDS("/SAN/Victors_playground/Eimeria_microbiome/Multimarker/MATax_TestRun.Rds")  
+}
 ### Add sample information
 if(!exists("sample.data")){
-  source("MA_Multimarker.R")
+  source("~/GitProjects/Eimeria_Microbiome/R/1_Data_preparation.R")
 }
 
-MA <- addSampleData(MA, sample.data)
+MA1 <- addSampleData(MA1, sample.data)
+MA2 <- addSampleData(MA2, sample.data)
 
-#saveRDS(MA, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/MASample_TestRun.Rds")  ###START from here now! 
-saveRDS(MA, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/MASample_FullRun_1.Rds")
+#saveRDS(MA2, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/MASample_TestRun.Rds")  ###START from here now! 
+#saveRDS(MA1, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/MASample_FullRun_1.Rds")
 
 ####Raw counts
-rawcounts <- data.frame(colSums(getRawCounts(MA)))
-rawcounts[,2] <- rownames(rawcounts)
-colnames(rawcounts) <- c("Raw_counts", "labels")
-rownames(rawcounts) <- c(1:nrow(rawcounts))
-rawcounts <- data.frame(labels = rawcounts$labels, Raw_counts = rawcounts$Raw_counts) 
+temp1 <- data.frame(colSums(getRawCounts(MA1)))
+temp1[,2] <- rownames(temp1)
+colnames(temp1) <- c("Raw_counts", "labels")
+rownames(temp1) <- c(1:nrow(temp1))
+temp1 <- data.frame(labels = temp1$labels, Raw_counts_1 = temp1$Raw_counts)
+
+temp2 <- data.frame(colSums(getRawCounts(MA2)))
+temp2[,2] <- rownames(temp2)
+colnames(temp2) <- c("Raw_counts", "labels")
+rownames(temp2) <- c(1:nrow(temp2))
+temp2 <- data.frame(labels = temp2$labels, Raw_counts_2 = temp2$Raw_counts)
+
+rawcounts<- join(temp1, temp2, by= "labels")
+rm(temp1, temp2)
+
+rawcounts%>%
+  dplyr::mutate(Raw_counts= Raw_counts_1 + Raw_counts_2)->rawcounts
 
 hist(rawcounts$Raw_counts)
 summary(rawcounts$Raw_counts)
 boxplot(rawcounts$Raw_counts)
 
-sum(rawcounts$Raw_counts) ###Total raw counts reads = 389165 for TestRun
+sum(rawcounts$Raw_counts) ###Total raw counts reads = 5,360,843
 
 ##To phyloseq
+if(doPhyloseq){
 ##Sample data
-PS <- toPhyloseq(MA, colnames(MA))
-sum(otu_table(PS)) ##Total denoised reads = 267293 for TestRun
+PS1 <- toPhyloseq(MA1, colnames(MA1))
+sum(otu_table(PS1)) ##Total denoised reads = 3,610,637 for FullRun
+
+PS2<- toPhyloseq(MA2, colnames(MA2))
+sum(otu_table(PS2)) ##Total denoised reads = 267,293 for TestRun
+
 ##Primer data
-#PS.l <- toPhyloseq(MA, colnames(MA),  multi2Single=FALSE) Not working, check later!
-
+#PS1.l <- toPhyloseq(MA1, colnames(MA1),  multi2Single=FALSE) Not working, check later!
+#PS2.l <- toPhyloseq(MA2, colnames(MA2),  multi2Single=FALSE) Not working, check later!
 #saveRDS(PS.l, file="/SAN/Victors_playground/Eimeria_microbiome/PhyloSeqList.Rds") ###For primer analysis
-#saveRDS(PS, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_TestRun.Rds") ###For Sample analysis (Susana and Victor)
-saveRDS(PS, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_FullRun_1.Rds") ###For Sample analysis (Susana and Victor)
-
+#saveRDS(PS2, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_TestRun.Rds") ###For Sample analysis (Susana and Victor)
+#saveRDS(PS1, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_FullRun_1.Rds") ###For Sample analysis (Susana and Victor)
+}else{
 ####Merge phyloseq objects 
-if(HMHZ_1){
+  
   PS1 <-  readRDS(file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_TestRun.Rds")
   PS2 <-  readRDS(file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_FullRun_1.Rds")
   
-  PS <- merge_phyloseq(PS1, PS) ###Works! 
-  saveRDS(PS, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_All.Rds") ###Results from full + test run 
+  PS <- merge_phyloseq(PS1, PS2) ###Works! 
+  #saveRDS(PS, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_All.Rds") ###Results from full + test run 
 }
+
+rm(MA1, MA2, PS1, PS2)
