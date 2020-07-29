@@ -146,4 +146,5 @@ sdt <- plyr::join(sdt, sdtEim, by= "labels")
 sdt %>%
   mutate(Eimeria_abundance = sdt$ReadsEim/sdt$TotalReads) -> sdt 
 
+#write.csv(sdt, file = "/SAN/Victors_playground/Eimeria_microbiome/Multimarker/sdt.csv", row.names = FALSE)
 rm(PS.eimeria, PS.genus, sdtEim)
