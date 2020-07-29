@@ -15,22 +15,13 @@ library("lattice")
 library("pheatmap")
 library("viridisLite")
 
-#Mock<- T
+
 Standards<- T
 Unknowns<- F
+Mock<- F
 Infexp<- T
 
 ##Load data
-if(Mock){
-  data.mock<- read.csv("/SAN/Victors_playground/Eimeria_microbiome/qPCR/Eimeria_quantification_mockexp_adj.csv")
-  
-  ##Define numeric and factor variables 
-  num.vars <- c("Ct", "Ct_mean", "Sd_Ct", "Qty", "Qty_mean", "Sd_Qty", "Oocyst_count", "Feces_weight", "Qubit", "NanoDrop", "Beads_weight")
-  fac.vars <- c("Well", "Sample.Name", "Detector", "Task",  "Std_series","Date", "Operator", "Cycler", "Parasite", "Sample_type", "Extraction")  
-  data.mock[, num.vars] <- apply(data.mock[, num.vars], 2, as.numeric)
-  data.mock[, fac.vars] <- apply(data.mock[, fac.vars], 2, as.factor)
-}
-
 if(Standards){
   data.std<- read.csv("/SAN/Victors_playground/Eimeria_microbiome/qPCR/Eimeria_quantification_Std_Curve_data.csv")
   data.std%>%
@@ -72,6 +63,7 @@ if(Infexp){
   }
 }
 
+rm(fac.vars, num.vars)
 ####### Standard curves #######
 set.seed(2020)
 
@@ -89,7 +81,7 @@ data.std%>%
   stat_summary(fun.data=mean_cl_boot, geom="pointrange", shape=16, size=0.5, color="black")+
   labs(tag = "A)")+
   theme_bw() +
-  theme(text = element_text(size=20), legend.position = "none")-> A
+  theme(text = element_text(size=20), legend.position = "none") #-> A
 
 summary(lm(formula = log10(Oocyst_count)~Ct, data = subset(data.std, Cycler=="Eppendorf")))
 
@@ -108,7 +100,7 @@ data.std%>%
   labs(tag = "B)")+
   theme_bw() +
   facet_grid(cols = vars(Std_series))+
-  theme(text = element_text(size=20), legend.position = "none")-> B
+  theme(text = element_text(size=20), legend.position = "none") #-> B
 
 summary(lm(formula = log10(Oocyst_count)~Ct, data = subset(data.std, Cycler=="ABI" & Task== "Standard")))
 
@@ -127,14 +119,14 @@ data.std%>%
   labs(tag = "C)")+
   theme_bw() +
   facet_grid(cols = vars(Std_series))+
-  theme(text = element_text(size=20), legend.position = "none")-> C
+  theme(text = element_text(size=20), legend.position = "none") #-> C
 
 summary(lm(formula = log10(Oocyst_count)~Ct, data = subset(data.std, Cycler=="BioRad" & Task== "Standard")))
-
 
 #pdf(file = "~/AA_Microbiome/qPCR_Eimeria_Quantification/figures/Standard_curves.pdf", width = 10, height = 15)
 #grid.arrange(A, B, C)
 #dev.off()
+#rm(A,B,C)
 
 ##Final standard curve for Inf. experiment samples 
 ## Eimeria Oocysts
@@ -173,11 +165,12 @@ data.std%>%
   theme_bw() +
   theme(text = element_text(size=20), legend.position = "none")-> D2
 
-### Figure 1 Standard curves 
+### Figure 1 Final Standard curves 
 pdf(file = "~/AA_Microbiome/Figures/Figure_1.pdf", width = 10, height = 10)
 grid.arrange(D, D2)
 dev.off()
 
+rm(D,D2)
 ###### Intersample variation #####
 
 data.unk%>%
@@ -201,14 +194,14 @@ data.unk%>%
   stat_regline_equation(aes(color = Task), label.x = 5, label.y = 4)+
   guides(colour = guide_legend(override.aes = list(size=10))) +
   theme(text = element_text(size=20),legend.position = "none")+
-  labs(tag = "A)") -> E
+  labs(tag = "A)") #-> E
 
 summary(lm(formula = log10(Oocyst_count)~log10(Qty), data = subset(data.unk, Sample_type== "Oocysts")))
 
 #pdf(file = "~/AA_Microbiome/qPCR_Eimeria_Quantification/figures/Intersample_Variation.pdf", width = 10, height = 10)
 #E
 #dev.off()
-
+#rm(E)
 ########## Mock samples Experiment #########
 
 if(Mock){
@@ -272,43 +265,12 @@ if(Mock){
     theme(text = element_text(size=16),legend.position = "none")+
     theme(axis.text.x = element_text(angle=90))+
     stat_summary(fun.data=mean_cl_boot, geom="pointrange", shape=16, size=0.5, color="black")+
-    labs(tag = "C)")+
+    labs(tag = "A)")+
     geom_hline(yintercept = 30, linetype = 2)+
     stat_compare_means(method = "anova",
                        aes(label = paste0(..method.., ",\n","p=",..p.format..)), label.y= 34, label.x = 7)+
     stat_compare_means(label = "p.signif", method = "t.test",ref.group = "H2O", 
                        label.y = c(34, 31, 27, 24, 21, 17, 15, 0)) ##Determine that 10^0 meassurments are basically like NTC
-  
-  ##Mean comparison unknown samples against NTC
-  #comp2<- compare_means(Ct ~ Sample.Name,  data = subset(data.mock, Task%in%c("Unknown", "NTC")), method = "t.test", p.adjust.method = "bonferroni")
-  
-  #set.seed(2020)
-  #ggplot(subset(data.mock, Task%in%c("Unknown", "NTC")), aes(x = Sample.Name, y = Ct)) +
-  #  scale_x_discrete(name = "No. of oocysts", labels= c("E_falciformis_GB_01"= "1.115x10⁶", "E_falciformis_GB_02"= "1.115x10⁵",
-  #                                                      "E_falciformis_GB_03"= "1.115x10⁴", "E_falciformis_GB_04"= "1.115x10³",
-  #                                                      "E_falciformis_GB_05"= "5.575x10³", "E_falciformis_GB_06"= "5.58x10²",
-  #                                                      "E_falciformis_GB_07"= "5.6x10¹", "E_falciformis_GB_08"= "0", 
-  #                                                      "E_falciformis_PB_01"= "1.115x10⁶", "E_falciformis_PB_02"= "1.115x10⁵",
-  #                                                      "E_falciformis_PB_03"= "1.115x10⁴", "E_falciformis_PB_04"= "1.115x10³",
-  #                                                      "E_falciformis_PB_05"= "5.575x10³", "E_falciformis_PB_06"= "5.58x10²",
-  #                                                      "E_falciformis_PB_07"= "5.6x10¹", "E_falciformis_PB_08"= "0","H2O"= "NTC")) +
-  #  scale_y_continuous(name = "Ct")+ 
-  #  geom_jitter(shape=21, position=position_jitter(0.2), color= "black", aes(size= 25, fill= Extraction))+
-  #  theme_bw() +
-  #  #facet_grid(cols = vars(Extraction))+
-  #  theme(text = element_text(size=16),legend.position = "none")+
-  #  theme(axis.text.x = element_text(angle=90))+
-  #  stat_summary(fun.data=mean_cl_boot, geom="pointrange", shape=16, size=0.5, color="black")+
-  #  labs(tag = "D)")+
-  #  geom_hline(yintercept = 30, linetype = 2)+
-  #  stat_compare_means(method = "anova",
-  #                     aes(label = paste0(..method.., ",\n","p ",..p.format..)), label.y= 17, label.x = 16)+
-  #  stat_compare_means(label = "p.signif", method = "t.test",ref.group = "H2O", 
-  #                     label.y = c(18, 23, 33, 26, 26, 27, 32, 33, 17, 21, 25, 28, 27, 28, 32, 34,0)) ##Determine that samples with <=10^1 oocysts are basically like NTC
-  
-  #pdf(file = "~/AA_Microbiome/qPCR_Eimeria_Quantification/figures/ABI_Cycler/Fig_2_Mock.pdf", width = 10, height = 15)
-  #grid.arrange(C, D)
-  #dev.off()
   
   ##Compair mock samples qPCR estimation with real oocyst count
   set.seed(2020)
@@ -337,15 +299,20 @@ if(Mock){
   
   ##Standard curve and ceramic beads data
   data.std%>%
-    select(Sample.Name,Task,Std_series,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm, Date)%>%
+    select(Sample.Name,Task,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm, Sample_type,Feces_weight,Extraction,Date)%>%
     filter(Task%in%c("Standard", "NTC") & Cycler=="ABI" & Date=="300620")-> Std.mock
   
   data.unk%>%
-    select(Sample.Name, Task, Ct,Qty,Cycler,Parasite, Sample_type, Feces_weight, Extraction, Oocyst_count)%>%
+    select(Sample.Name,Task,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm,Sample_type,Feces_weight,Extraction,Date)%>%
     filter(Sample_type=="Feces" & Task=="Unknown" & Extraction!="Glass_beads")%>%
-    bind_rows(Std.mock)-> data.mock2
+    bind_rows(Std.mock)-> data.mock
   
-  f<-ggplot(data.mock2, aes(x = Oocyst_count, y = Ct), geom=c("point", "smooth")) +
+  rm(Std.mock)
+  
+  data.mock%>%
+    select(Sample.Name,Task,Qty,Ct,Oocyst_count)%>%  
+    filter(Task%in%c("Standard", "Unknown"))%>%
+    ggplot(aes(x = Oocyst_count, y = Ct), geom=c("point", "smooth")) +
     scale_x_log10(name = "Number of Eimeria oocysts") +
     scale_y_continuous(name = "Ct")+ 
     geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 25, fill= Task), color= "black")+
@@ -359,9 +326,12 @@ if(Mock){
     stat_regline_equation(aes(color = Task), label.x = 3, label.y = c(35, 31))+
     guides(colour = guide_legend(override.aes = list(size=10))) +
     theme(text = element_text(size=20),legend.position = "none")+
-    labs(tag = "F)")
+    labs(tag = "A)")
   
-  G<-ggplot(data.mock2, aes(x = Oocyst_count, y = Qty), geom=c("point", "smooth")) +
+  data.mock%>%
+    select(Sample.Name,Task,Qty,Ct,Oocyst_count)%>%  
+    filter(Task%in%c("Standard", "Unknown"))%>%
+    ggplot(aes(x = Oocyst_count, y = Qty), geom=c("point", "smooth")) +
     scale_x_log10(name = "log10 Number of Eimeria Oocysts (Flotation)")+
     scale_y_log10(name = "log10 Number of Eimeria Oocysts (qPCR)")+ 
     geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 25, fill= Task), color= "black")+
@@ -375,38 +345,45 @@ if(Mock){
     stat_regline_equation(aes(color = Task), label.x = 1, label.y = c(6, 5))+
     guides(colour = guide_legend(override.aes = list(size=10))) +
     theme(text = element_text(size=20),legend.position = "none")+
-    labs(tag = "G)")
+    labs(tag = "B)")
   
-  pdf(file = "~/AA_Microbiome/qPCR_Eimeria_Quantification/figures/ABI_Cycler/Fig_4_Mock.pdf", width = 10, height = 15)
-  grid.arrange(f, G)
-  dev.off()
+  #pdf(file = "~/AA_Microbiome/qPCR_Eimeria_Quantification/figures/ABI_Cycler/Fig_4_Mock.pdf", width = 10, height = 15)
+  #grid.arrange(f, G)
+  #dev.off()
   
-  ###Estimate microbiota density (MD) from Contijoch et al. 2019
-  ### MD = total DNA per sample (µg)/ mg of fresh feces
+  ##Mean comparison unknown samples against NTC
+  compare_means(Ct ~ Sample.Name,  data = subset(data.mock, Task%in%c("Unknown", "NTC")), method = "t.test", p.adjust.method = "bonferroni")
   
+  set.seed(2020)
   data.mock%>%
-    subset(Task=="Unknown")%>%
-    mutate(DNA= (Qubit*40/1000))%>% ### considering 40uL of elution and the convertion 1ug == 1000ng 
-    mutate(MD= DNA/Feces_weight*1000)%>%
-    filter(Extraction!="Glass_beads")%>%
-    #bind_rows(Std)%>%
-    ggplot(aes(x = MD, y = Oocyst_count), geom=c("point", "smooth")) +
-    scale_x_log10(name = "log10 Microbial density")+
-    scale_y_log10(name = "log10 Number of Eimeria Oocysts (qPCR)")+ 
-    #scale_y_continuous(name = "Microbial density")+ 
-    geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 25, fill= Task), color= "black")+
-    stat_summary(fun.data=mean_cl_boot, geom="pointrange", shape=16, size=0.5, color="black")+
+    select(Sample.Name,Task,Qty,Ct,Oocyst_count,Sample_type)%>%  
+    filter(Task%in%c("Unknown", "NTC"))%>%
+    ggplot(aes(x = Sample.Name, y = Ct)) +
+    scale_x_discrete(name = "No. of oocysts", labels= c("E_falciformis_GB_01"= "1.115x10⁶", "E_falciformis_GB_02"= "1.115x10⁵",
+                                                        "E_falciformis_GB_03"= "1.115x10⁴", "E_falciformis_GB_04"= "1.115x10³",
+                                                        "E_falciformis_GB_05"= "5.575x10³", "E_falciformis_GB_06"= "5.58x10²",
+                                                        "E_falciformis_GB_07"= "5.6x10¹", "E_falciformis_GB_08"= "0", 
+                                                        "E_falciformis_PB_01"= "1.115x10⁶", "E_falciformis_PB_02"= "1.115x10⁵",
+                                                        "E_falciformis_PB_03"= "1.115x10⁴", "E_falciformis_PB_04"= "1.115x10³",
+                                                        "E_falciformis_PB_05"= "5.575x10³", "E_falciformis_PB_06"= "5.58x10²",
+                                                        "E_falciformis_PB_07"= "5.6x10¹", "E_falciformis_PB_08"= "0","H2O"= "NTC")) +
+    scale_y_continuous(name = "Ct")+ 
+    geom_jitter(shape=21, position=position_jitter(0.2), color= "black", aes(size= 25, fill= Sample_type))+
     theme_bw() +
-    theme(legend.text=element_text(size=20)) +
-    theme(legend.key.size = unit(3,"line")) +
-    geom_smooth(aes(color= Task, fill= Task), method = "lm")+            
-    stat_cor(aes(color = Task), label.x = 3,  label.y = 5 ,method = "spearman")+
-    stat_cor(label.x = 3, label.y = 5.5,aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"), color = Task))+        # Add correlation coefficient
-    stat_regline_equation(aes(color = Task), label.x = 3, label.y = 6)+
-    guides(colour = guide_legend(override.aes = list(size=10))) +
-    theme(text = element_text(size=20),legend.position = "none")+
-    labs(tag = "G)")
+    #facet_grid(cols = vars(Extraction))+
+    theme(text = element_text(size=16),legend.position = "none")+
+    theme(axis.text.x = element_text(angle=90))+
+    stat_summary(fun.data=mean_cl_boot, geom="pointrange", shape=16, size=0.5, color="black")+
+    labs(tag = "B)")+
+    geom_hline(yintercept = 30, linetype = 2)+
+    stat_compare_means(method = "anova",
+                       aes(label = paste0(..method.., ",\n","p ",..p.format..)), label.y= 17, label.x = 8)+
+    stat_compare_means(label = "p.signif", method = "t.test",ref.group = "H2O", 
+                       label.y = c(16.5, 21, 25, 27.5, 26, 27.5, 31, 32.5, 30)) ##Determine that samples with <=10^1 oocysts are basically like NTC
   
+  #pdf(file = "~/AA_Microbiome/qPCR_Eimeria_Quantification/figures/ABI_Cycler/Fig_2_Mock.pdf", width = 10, height = 15)
+  #grid.arrange(C, D)
+  #dev.off()
 }
 
 ###### Infection experiment samples ########
