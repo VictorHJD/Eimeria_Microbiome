@@ -110,6 +110,7 @@ as.data.frame(table(tax_table(PS.18S)[, "phylum"]))
 as.data.frame(table(tax_table(PS.18S)[, "genus"]))
 
 counts_18S%>%
-  dplyr::select(labels, ReadsEim18S)-> sdt18SEim
+  dplyr::select(labels, Read_counts_18S,ReadsEim18S)%>%
+  dplyr::mutate(Eimeria_abundance_18S= ReadsEim18S/Read_counts_18S)-> sdt18SEim
 
 #write.csv(sdt18SEim, file = "/SAN/Victors_playground/Eimeria_microbiome/sdt18SEim.csv", row.names = FALSE)

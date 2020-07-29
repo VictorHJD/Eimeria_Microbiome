@@ -53,7 +53,7 @@ hist(rowSums(otu_table(subset_taxa(PS, genus%in%"Mus"))))
 sum(otu_table(subset_taxa(PS, genus%in%"Mus")))/sum(otu_table(PS))
 ###Just 1.22% of Mus DNA 
 ###Eliminate reads assigned as "Mus"
-#PS <- subset_taxa(PS, genus!= "Mus") ##Taxa en OTU table decreased dramatically, check and then apply 
+PS <- subset_taxa(PS, !genus%in%c( "Mus")) ##Taxa en OTU table decreased dramatically, check and then apply 
 
 ###Step 4) Taxonomic filter (eliminate spurius taxa)
 ##Taxonomic filtering
@@ -86,18 +86,47 @@ counts_multi[,2] <- rownames(counts_multi)
 ###Bacterial and Eukaryotic counts
 counts_multi[,3] <- as.data.frame(rowSums(otu_table(subset_taxa(PS, superkingdom%in%"Bacteria"))))
 counts_multi[,4] <- as.data.frame(rowSums(otu_table(subset_taxa(PS, superkingdom%in%"Eukaryota"))))
-colnames(counts_multi) <- c("Read_counts", "labels", "Bacteria_reads", "Eukaryota_reads")
+counts_multi[,5] <- as.data.frame(rowSums(otu_table(subset_taxa(PS, genus%in%"Eimeria"))))
+counts_multi[,6] <- as.data.frame(rowSums(otu_table(subset_taxa(PS, species%in%"Eimeria ferrisi"))))
+counts_multi[,7] <- as.data.frame(rowSums(otu_table(subset_taxa(PS, species%in%"Eimeria falciformis"))))
+counts_multi[,8] <- as.data.frame(rowSums(otu_table(subset_taxa(PS, species%in%"Eimeria papillata"))))
+counts_multi[,9] <- as.data.frame(rowSums(otu_table(subset_taxa(PS, species%in%"Eimeria telekii"))))
+counts_multi[,10] <- as.data.frame(rowSums(otu_table(subset_taxa(PS, species%in%"Eimeria vermiformis"))))
+counts_multi[,11] <- as.data.frame(rowSums(otu_table(subset_taxa(PS, species%in%"Eimeria scholtysecki"))))
+counts_multi[,12] <- as.data.frame(rowSums(otu_table(subset_taxa(PS, species%in%"Eimeria meleagrimitis"))))
+counts_multi[,13] <- as.data.frame(rowSums(otu_table(subset_taxa(PS, species%in%"Eimeria arnyi"))))
+colnames(counts_multi) <- c("Read_counts", "labels", "Bacteria_reads", "Eukaryota_reads", 
+                            "ReadsEim", "ReadsEimfer", "ReadsEimfal", "ReadsEimpap", "ReadsEimtel",
+                            "ReadsEimver", "ReadsEimsch", "ReadsEimmel", "ReadsEimarn")
 rownames(counts_multi) <- c(1:nrow(counts_multi))
 counts_multi <- data.frame(labels = counts_multi$labels, 
                              Read_counts = counts_multi$Read_counts,
                              Bacteria_reads= counts_multi$Bacteria_reads,
-                             Eukaryota_reads= counts_multi$Eukaryota_reads)
+                             Eukaryota_reads= counts_multi$Eukaryota_reads,
+                             ReadsEim= counts_multi$ReadsEim,
+                             ReadsEimfer= counts_multi$ReadsEimfer,
+                           ReadsEimfal= counts_multi$ReadsEimfal,
+                           ReadsEimpap= counts_multi$ReadsEimpap,
+                           ReadsEimtel= counts_multi$ReadsEimtel,
+                           ReadsEimver= counts_multi$ReadsEimver,
+                           ReadsEimsch= counts_multi$ReadsEimsch,
+                           ReadsEimmel= counts_multi$ReadsEimmel,
+                           ReadsEimarn= counts_multi$ReadsEimarn)
 
 hist(counts_multi$Read_counts)
 summary(counts_multi$Read_counts)
 sum(counts_multi$Read_counts)
 sum(counts_multi$Bacteria_reads)
 sum(counts_multi$Eukaryota_reads)
+sum(counts_multi$ReadsEim)
+sum(counts_multi$ReadsEimfer)
+sum(counts_multi$ReadsEimfal)
+sum(counts_multi$ReadsEimpap)
+sum(counts_multi$ReadsEimtel)
+sum(counts_multi$ReadsEimver)
+sum(counts_multi$ReadsEimsch)
+sum(counts_multi$ReadsEimmel)
+sum(counts_multi$ReadsEimarn)
 
 ## Bacteria reads proportion
 sum(otu_table(subset_taxa(PS, superkingdom %in% "Bacteria")))/sum(otu_table(PS))
@@ -109,6 +138,7 @@ sum(otu_table(subset_taxa(PS, genus %in% "Eimeria")))/sum(otu_table(PS))
 table(tax_table(PS)[, "superkingdom"], exclude = NULL)
 ## ASVs by genus
 table(tax_table(PS)[, "genus"], exclude = NULL) ## Eimeria has 398 ASVs
+table(tax_table(PS)[, "species"], exclude = NULL) ## Eimeria ferrisi has 116 ASVs
 
 ####Taxa detected
 as.data.frame(table(tax_table(PS)[, "phylum"]))
@@ -132,12 +162,9 @@ sdt <- data.table(as(sample_data(PS), "data.frame"),
 setnames(sdt, "rn", "Sample_ID")
 
 ###Summarize Eimeria sequencing depths
-PS.eimeria <- subset_taxa(PS, genus%in%"Eimeria")
-
-sdtEim <- data.table(as(sample_data(PS.eimeria), "data.frame"),
-                     ReadsEim= sample_sums(PS.eimeria), keep.rownames = T)
-
-sdtEim <- dplyr::select(sdtEim, 5,57)
+counts_multi%>%
+  select(labels, ReadsEim, ReadsEimfer, ReadsEimfal, ReadsEimpap, ReadsEimtel, ReadsEimver, ReadsEimsch, ReadsEimmel, ReadsEimarn)%>%
+  distinct(labels, .keep_all = TRUE)-> sdtEim
 
 ### Join Eimeria read counts with rest of the informaion
 sdt <- plyr::join(sdt, sdtEim, by= "labels")
@@ -147,4 +174,4 @@ sdt %>%
   mutate(Eimeria_abundance = sdt$ReadsEim/sdt$TotalReads) -> sdt 
 
 #write.csv(sdt, file = "/SAN/Victors_playground/Eimeria_microbiome/Multimarker/sdt.csv", row.names = FALSE)
-rm(PS.eimeria, PS.genus, sdtEim)
+rm(PS.eimeria, sdtEim)

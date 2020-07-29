@@ -417,4 +417,4 @@ data.inf%>%
 #write.csv(data.inf.exp, "/SAN/Victors_playground/Eimeria_microbiome/qPCR/sample_data_qPCR.csv", row.names = FALSE)
 }
 
-rm(data.inf, data.std)
+rm(data.inf, data.std, Sum.inf)
