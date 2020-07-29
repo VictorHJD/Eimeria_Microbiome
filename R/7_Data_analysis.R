@@ -49,7 +49,7 @@ setdiff(sample.data$labels, sdt18SEim$labels)
 setdiff(sample.data$labels, data.inf.exp$labels)
 ##Keep useful information
 sdt%>%
-  select(labels, TotalReads, ReadsEim, Eimeria_abundance)%>%
+  select(labels, TotalReads, ReadsEim, ReadsEimfer, ReadsEimfal, ReadsEimpap, ReadsEimtel, ReadsEimver, ReadsEimsch, ReadsEimmel, ReadsEimarn)%>%
   distinct(labels, .keep_all = TRUE)-> sdt
 
 sdt18SEim%>%
@@ -226,6 +226,36 @@ sdt%>%
   labs(tag= "B)")+
   theme_bw()+
   theme(text = element_text(size=16))-> b
+
+sdt%>%
+  ggplot(aes(dpi, ReadsEimfer))+
+  geom_boxplot()+
+  xlab("Day post infection")+
+  scale_y_log10("log10 Sequence reads count \n Multiamplicon (Eimeria ferrisi)")+
+  geom_jitter(shape=21, position=position_jitter(0.2), size=2.5, aes(fill= dpi), color= "black")+
+  labs(tag= "B)")+
+  theme_bw()+
+  theme(text = element_text(size=16))
+
+sdt%>%
+  ggplot(aes(dpi, ReadsEimfal))+
+  geom_boxplot()+
+  xlab("Day post infection")+
+  scale_y_log10("log10 Sequence reads count \n Multiamplicon (Eimeria falciformis)")+
+  geom_jitter(shape=21, position=position_jitter(0.2), size=2.5, aes(fill= dpi), color= "black")+
+  labs(tag= "B)")+
+  theme_bw()+
+  theme(text = element_text(size=16))
+
+sdt%>%
+  ggplot(aes(dpi, ReadsEimtel))+
+  geom_boxplot()+
+  xlab("Day post infection")+
+  scale_y_log10("log10 Sequence reads count \n Multiamplicon (Eimeria telekii)")+
+  geom_jitter(shape=21, position=position_jitter(0.2), size=2.5, aes(fill= dpi), color= "black")+
+  labs(tag= "B)")+
+  theme_bw()+
+  theme(text = element_text(size=16))
 
 sdt%>%
   dplyr::arrange(dpi)%>%
