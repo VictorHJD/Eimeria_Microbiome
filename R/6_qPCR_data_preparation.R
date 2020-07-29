@@ -15,7 +15,6 @@ library("lattice")
 library("pheatmap")
 library("viridisLite")
 
-
 Standards<- T
 Unknowns<- F
 Mock<- F
@@ -171,8 +170,8 @@ grid.arrange(D, D2)
 dev.off()
 
 rm(D,D2)
-###### Intersample variation #####
-
+###### Intersample variation experiment #####
+if(Unknowns){
 data.unk%>%
   select(Sample.Name, Task, Ct,Qty,Cycler,Parasite, Sample_type, Tm, Oocyst_1, Oocyst_2, Oocyst_3, Oocyst_4, Oocyst_5,Oocyst_6, Oocyst_7, Oocyst_8, Dilution_factor, Volume)%>%
   filter(Sample_type=="Oocysts" & Task=="Unknown")%>%
@@ -202,12 +201,11 @@ summary(lm(formula = log10(Oocyst_count)~log10(Qty), data = subset(data.unk, Sam
 #E
 #dev.off()
 #rm(E)
+}
 ########## Mock samples Experiment #########
-
 if(Mock){
-  set.seed(2020)
-
   ##Standard curve for this experiment 
+  set.seed(2020)
   data.std%>%
     select(Sample.Name,Task,Std_series,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm, Date)%>%
     filter(Task=="Standard" & Cycler=="ABI" & Date=="300620")%>%
@@ -384,67 +382,39 @@ if(Mock){
   #pdf(file = "~/AA_Microbiome/qPCR_Eimeria_Quantification/figures/ABI_Cycler/Fig_2_Mock.pdf", width = 10, height = 15)
   #grid.arrange(C, D)
   #dev.off()
+  #rm(data.mock, data.unk)
 }
 
 ###### Infection experiment samples ########
+if(Infexp){
 ## Considering the standard curve generated with the data from the BioRad Cycler
 #Ct = 38 -4(log10Number of Oocysts)
 # Number of oocysts = 10^((Ct-38)/-4)
+# Number of genome copies = Number of oocysts*8
 
 ##Estimate number of Oocysts with qPCR Ct value 
 
-##Define real positive based on Tm 
+##Define real positive and negatives based on Tm 
 data.inf %>% 
   dplyr::mutate(Infection = case_when(is.na(Tm)  ~ "Negative",
                                       Tm >= 80   ~ "Negative", Tm < 80 ~ "Positive"))%>%
-  dplyr::mutate(Qty= 10^((Ct-38)/-4)) -> data.inf
+  dplyr::mutate(Qty= 10^((Ct-38)/-4), Genome_copies= Qty*8) -> data.inf
 
 data.inf %>%
-  select(Tm, Qty, labels) %>% # select variables to summarise
+  select(Tm, Qty, Genome_copies, labels) %>% # select variables to summarise
   na.omit()%>%
   dplyr::group_by(labels)%>%
-  summarise_each(funs(min = min, q25 = quantile(., 0.25), median = median, q75 = quantile(., 0.75), 
+  dplyr::summarise_each(funs(min = min, q25 = quantile(., 0.25), median = median, q75 = quantile(., 0.75), 
                       max = max, mean = mean, sd = sd)) -> Sum.inf
 
 data.inf<- join(data.inf, Sum.inf, by= "labels")
-data.inf<- join(data.inf, sample.data, by= "labels")
 
 data.inf%>%
-  select(labels, Qty_mean, Tm_mean, Infection)%>%
-  filter(!labels%in%c("Pos_Ctrl","Neg_Ctrl","FML"))-> data.inf.exp
+  select(labels, Qty_mean, Genome_copies_mean, Tm_mean, Infection)%>%
+  filter(!labels%in%c("Pos_Ctrl","Neg_Ctrl","FML"))%>% ## Replace NAs in real negative samples to 0 
+  dplyr::mutate(Qty_mean= replace_na(Qty_mean, 0), Genome_copies_mean= replace_na(Genome_copies_mean, 0))-> data.inf.exp
 
-write.csv(data.inf.exp, "/SAN/Victors_playground/Eimeria_microbiome/sample_data_qPCR.csv")
+#write.csv(data.inf.exp, "/SAN/Victors_playground/Eimeria_microbiome/qPCR/sample_data_qPCR.csv", row.names = FALSE)
+}
 
-###Plot Qty by DPI
-data.inf%>%
-  filter(!labels%in%c("Pos_Ctrl","Neg_Ctrl","FML"))%>%
-  ggplot(aes(dpi, Qty))+
-  geom_boxplot()+
-  xlab("Day post infection")+
-  scale_y_log10(name = "log10 Number of Eimeria Oocysts (qPCR)")+ 
-  geom_jitter(shape=21, position=position_jitter(0.2), size=2.5, aes(fill= dpi), color= "black")+
-  labs(tag= "A)")+
-  theme_bw()+
-  theme(text = element_text(size=16)) -> f
-
-data.inf%>%
-  filter(!labels%in%c("Pos_Ctrl","Neg_Ctrl","FML"))%>%
-  ggplot(aes(OPG, Qty))+
-  geom_smooth(method = lm)+
-  scale_x_log10(name = "log10 Oocyst per gram feces (Flotation)")+
-  scale_y_log10(name = "log10 Number of Eimeria Oocysts (qPCR)")+
-  geom_jitter(shape=21, position=position_jitter(0.2), size=5, aes(fill= dpi), color= "black")+
-  #stat_summary(fun.data=mean_cl_boot, geom="pointrange", shape=16, size=0.5, color="black")+
-  labs(tag= "B)")+
-  theme_bw()+
-  theme(text = element_text(size=16))+
-  #facet_wrap(~dpi) +
-  stat_cor(label.x = 5.5, label.y = 1, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
-  stat_regline_equation(label.x = 5.5, label.y = 1.5) +
-  stat_cor(label.x = 5.5,  label.y = 0.5,method = "spearman")-> G
-
-#summary(lm(formula = log10(OPG)~log10(Qty), data = data.inf))
-
-pdf(file = "~/AA_Microbiome/qPCR_Eimeria_Quantification/figures/Track_infection.pdf", width = 10, height = 15)
-grid.arrange(f, G)
-dev.off()
+rm(data.inf, data.std)
