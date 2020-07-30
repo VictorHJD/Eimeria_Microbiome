@@ -188,11 +188,23 @@ PS2<- toPhyloseq(MA2, colnames(MA2))
 sum(otu_table(PS2)) ##Total denoised reads = 267,293 for TestRun
 
 ##Primer data
-#PS1.l <- toPhyloseq(MA1, colnames(MA1),  multi2Single=FALSE) Not working, check later!
-#PS2.l <- toPhyloseq(MA2, colnames(MA2),  multi2Single=FALSE) Not working, check later!
-#saveRDS(PS.l, file="/SAN/Victors_playground/Eimeria_microbiome/PhyloSeqList.Rds") ###For primer analysis
+## just sorting out primers whithout any taxannot
+MA1 <- MA1[which( !unlist(lapply(MA1@taxonTable, is.null))), ] ##Make the next function work 
+PS1.l <- toPhyloseq(MA1, colnames(MA1),  multi2Single=FALSE) 
+#saveRDS(PS1.l, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqList_FullRun_1.Rds")
+
+MA2 <- MA2[which( !unlist(lapply(MA2@taxonTable, is.null))), ] ##Make the next function work 
+PS2.l <- toPhyloseq(MA2, colnames(MA2),  multi2Single=FALSE) 
+#saveRDS(PS1.l, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqList_TestRun.Rds")
+
+along<- names(PS2.l) ## Run with less primers working
+PS.l <- lapply(along, function(i) merge_phyloseq(PS1.l[[i]], PS2.l[[i]])) ##Merge all the information from both experiments
+names(PS.l) <- names(PS2.l) ###Use the names from test list 
+
+#saveRDS(PS.l, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqList_All.Rds") ###For primer analysis
 #saveRDS(PS2, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_TestRun.Rds") ###For Sample analysis (Susana and Victor)
 #saveRDS(PS1, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_FullRun_1.Rds") ###For Sample analysis (Susana and Victor)
+rm(along,PS1.l, PS2.l)
 }else{
 ####Merge phyloseq objects 
   
