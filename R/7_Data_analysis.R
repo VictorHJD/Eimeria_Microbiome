@@ -29,6 +29,10 @@ if(!exists("sdt")){
   sdt<- read.csv(file = "/SAN/Victors_playground/Eimeria_microbiome/Multimarker/sdt.csv")
 }
 
+if(!exists("sdt18SEimMulti")){
+  sdt<- read.csv(file = "/SAN/Victors_playground/Eimeria_microbiome/Multimarker/sdt18SEimMulti.csv")
+}
+
 #if(!exists("sdt18SEim")){
 #  source("~/GitProjects/Eimeria_Microbiome/R/5_Phyloseq_18S.R")
 #}
@@ -45,12 +49,17 @@ if(!exists("data.inf.exp")){
 
 
 setdiff(sample.data$labels, sdt$labels)
+setdiff(sample.data$labels, sdt18SEimMulti$labels)
 setdiff(sample.data$labels, sdt18SEim$labels)
 setdiff(sample.data$labels, data.inf.exp$labels)
 ##Keep useful information
 sdt%>%
   select(labels, TotalReads, ReadsEim, ReadsEimfer, ReadsEimfal, ReadsEimpap, ReadsEimtel, ReadsEimver, ReadsEimsch, ReadsEimmel, ReadsEimarn)%>%
   distinct(labels, .keep_all = TRUE)-> sdt
+
+sdt18SEimMulti%>%
+  select(labels, ReadsEim18SMulti)%>%
+  distinct(labels, .keep_all = TRUE)-> sdt18SEimMulti
 
 sdt18SEim%>%
   select(labels, Read_counts_18S, ReadsEim18S, Eimeria_abundance_18S)%>%
@@ -63,12 +72,11 @@ data.inf.exp%>%
 
 ### Join all the data in the same dataframe 
 sdt<- join(sample.data, sdt, by="labels") ## First sample data and multimarker read data 
-sdt<- join(sdt, sdt18SEim, by="labels") ## then 18S read data 
+sdt<- join(sdt, sdt18SEim, by="labels") ## then 18S read data (Wang.Nem primer in singlemarker)
+sdt<- join(sdt, sdt18SEimMulti, by="labels") ## then 18S read data (Wang.Nem primer in multimarker)
 sdt<- join(sdt, data.inf.exp, by="labels") ## then qPCR data 
 sdt$dpi<- as.factor(sdt$dpi)
 
-#sdt%>%
-#  dplyr::mutate(ReadsEimsp= ReadsEim - sum(ReadsEimfer, ReadsEimfal, ReadsEimpap, ReadsEimtel, ReadsEimver, ReadsEimsch, ReadsEimmel, ReadsEimarn))
 ###Let's start plotting and analysing the data!
 ### 1) Correlation among Eimeria quantification methods
 ####OPG vs reads Eimeria (Multiamplicon) 
@@ -85,6 +93,21 @@ sdt%>%
   stat_cor(label.x = 5.5, label.y = 1.25, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
   stat_regline_equation(label.x = 5.5, label.y = 1.5)+
   stat_cor(label.x = 5.5,  label.y = 1,method = "spearman")-> opgrem
+
+####OPG vs reads Eimeria (18S amplicon from multimarker dataset) 
+sdt%>%
+  ggplot(aes(OPG, ReadsEim18SMulti))+
+  geom_smooth(method = lm)+
+  scale_x_log10(name = "log10 Oocyst per gram feces (Flotation)")+
+  scale_y_log10("log10 Sequence reads count 18S multi (Eimeria)")+
+  geom_jitter(shape=21, position=position_jitter(0.2), size=5, aes(fill= dpi), color= "black")+
+  labs(tag= "B)")+
+  theme_bw()+
+  theme(text = element_text(size=16))+
+  #facet_wrap(~dpi) +
+  stat_cor(label.x = 5.5, label.y = 1.25, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
+  stat_regline_equation(label.x = 5.5, label.y = 1.5)+
+  stat_cor(label.x = 5.5,  label.y = 1,method = "spearman")
 
 ####OPG vs reads Eimeria (Single amplicon) 
 sdt%>%
@@ -129,6 +152,20 @@ sdt%>%
   stat_regline_equation(label.x = 4.0, label.y = 1)+
   stat_cor(label.x = 4.0,  label.y = 0.5,method = "spearman")-> qpcrrem
 
+####qPCR vs 18S amplicon from Multimarker dataset
+sdt%>%
+  ggplot(aes(Genome_copies_mean, ReadsEim18SMulti))+
+  geom_smooth(method = lm)+
+  scale_x_log10(name = "log10 Number of Eimeria genome copies (qPCR)")+
+  scale_y_log10(name = "log10 Sequence reads count 18S multi (Eimeria)")+
+  geom_jitter(shape=21, position=position_jitter(0.2), size=5, aes(fill= dpi), color= "black")+
+  labs(tag= "E)")+
+  theme_bw()+
+  theme(text = element_text(size=16))+
+  stat_cor(label.x = 5.5, label.y = 1.5, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
+  stat_regline_equation(label.x = 5.5, label.y = 1.75)+
+  stat_cor(label.x = 5.5,  label.y = 1.25,method = "spearman")
+
 ####qPCR vs Single amplicon
 sdt%>%
   ggplot(aes(Genome_copies_mean, ReadsEim18S))+
@@ -156,6 +193,32 @@ sdt%>%
   stat_cor(label.x = 3.0, label.y = 0.75, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
   stat_regline_equation(label.x = 3.0, label.y = 1)+
   stat_cor(label.x = 3.0,  label.y = 0.5,method = "spearman")-> remres
+
+sdt%>%
+  ggplot(aes(ReadsEim18S, ReadsEim18SMulti))+
+  geom_smooth(method = lm)+
+  scale_x_log10(name = "log10 Sequence reads count 18S (Eimeria)")+
+  scale_y_log10(name = "log10 Sequence reads count 18S Multiamplicon (Eimeria)")+
+  geom_jitter(shape=21, position=position_jitter(0.2), size=5, aes(fill= dpi), color= "black")+
+  labs(tag= "F)")+
+  theme_bw()+
+  theme(text = element_text(size=16))+
+  stat_cor(label.x = 3.0, label.y = 0.75, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
+  stat_regline_equation(label.x = 3.0, label.y = 1)+
+  stat_cor(label.x = 3.0,  label.y = 0.5,method = "spearman")
+
+sdt%>%
+  ggplot(aes(ReadsEim18S, ReadsEimfer))+
+  geom_smooth(method = lm)+
+  scale_x_log10(name = "log10 Sequence reads count Multiamplicon (E. ferrisi)")+
+  scale_y_log10(name = "log10 Sequence reads count 18S (Eimeria)")+
+  geom_jitter(shape=21, position=position_jitter(0.2), size=5, aes(fill= dpi), color= "black")+
+  labs(tag= "F)")+
+  theme_bw()+
+  theme(text = element_text(size=16))+
+  stat_cor(label.x = 1.0, label.y = 1.75, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
+  stat_regline_equation(label.x = 1.0, label.y = 2)+
+  stat_cor(label.x = 1.0,  label.y = 1.5,method = "spearman")
 
 #opgea <- ggplot(sdt, aes(OPG, Eimeria_abundance))+
 #  geom_smooth(method = lm)+
@@ -292,6 +355,16 @@ sdt%>%
   theme(text = element_text(size=16))
 
 sdt%>%
+  ggplot(aes(dpi, ReadsEim18SMulti))+
+  geom_boxplot()+
+  xlab("Day post infection")+
+  scale_y_log10("log10 Sequence reads count 18S Multi (Eimeria)")+
+  geom_jitter(shape=21, position=position_jitter(0.2), size=2.5, aes(fill= dpi), color= "black")+
+  labs(tag= "B)")+
+  theme_bw()+
+  theme(text = element_text(size=16))
+
+sdt%>%
   dplyr::arrange(dpi)%>%
   ggplot(aes(as.numeric(as.character(dpi)), ReadsEim, colour= EH_ID))+
   xlab("Day post infection")+
@@ -303,6 +376,32 @@ sdt%>%
   theme_bw()+
   theme(text = element_text(size=16))+
   stat_smooth(color= "black", method = "loess")-> b2
+
+sdt%>%
+  dplyr::arrange(dpi)%>%
+  ggplot(aes(as.numeric(as.character(dpi)), ReadsEimfer, colour= EH_ID))+
+  xlab("Day post infection")+
+  scale_y_log10("log10 Sequence reads count \n Multiamplicon (E. ferrisi)")+
+  scale_x_continuous(breaks = c(0,1,2,3,4,5,6,7,8,9,10))+
+  geom_line(alpha=0.5)+
+  geom_jitter(shape=21, position=position_jitter(0.0), size=2.5, aes(fill= EH_ID), color= "black", alpha= 0.5)+
+  labs(tag= "B)")+
+  theme_bw()+
+  theme(text = element_text(size=16))+
+  stat_smooth(color= "black", method = "loess")
+
+sdt%>%
+  dplyr::arrange(dpi)%>%
+  ggplot(aes(as.numeric(as.character(dpi)), ReadsEim18SMulti, colour= EH_ID))+
+  xlab("Day post infection")+
+  scale_y_log10("log10 Sequence reads count 18S Multi (Eimeria)")+
+  scale_x_continuous(breaks = c(0,1,2,3,4,5,6,7,8,9,10))+
+  geom_line(alpha=0.5)+
+  geom_jitter(shape=21, position=position_jitter(0.0), size=2.5, aes(fill= EH_ID), color= "black", alpha= 0.5)+
+  labs(tag= "B)")+
+  theme_bw()+
+  theme(text = element_text(size=16))+
+  stat_smooth(color= "black", method = "loess")
 
 ggpaired(comp, x= "dpi", y= "ReadsEim",line.color= "gray", line.size= 0.4, color= "dpi")+
   scale_y_log10("log10 Sequence reads count \n Multiamplicon (Eimeria)")+
