@@ -349,4 +349,4 @@ counts_multi_18S%>%
   dplyr::select(labels, Read_counts_18S,ReadsEim18SMulti)%>%
   dplyr::mutate(Eimeria_abundance_18S= ReadsEim18SMulti/Read_counts_18S)-> sdt18SEimMulti
 
-
+#write.csv(sdt18SEimMulti, file = "/SAN/Victors_playground/Eimeria_microbiome/Multimarker/sdt18SEimMulti.csv", row.names = FALSE)
