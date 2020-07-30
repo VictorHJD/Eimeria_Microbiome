@@ -208,8 +208,8 @@ rm(along,PS1.l, PS2.l)
 }else{
 ####Merge phyloseq objects 
   
-  PS1 <-  readRDS(file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_TestRun.Rds")
-  PS2 <-  readRDS(file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_FullRun_1.Rds")
+  PS2 <-  readRDS(file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_TestRun.Rds")
+  PS1<-  readRDS(file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_FullRun_1.Rds")
   
   PS <- merge_phyloseq(PS1, PS2) ###Works! 
   #saveRDS(PS, file="/SAN/Victors_playground/Eimeria_microbiome/Multimarker/PhyloSeqData_All.Rds") ###Results from full + test run 
