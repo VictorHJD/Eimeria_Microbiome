@@ -66,6 +66,9 @@ sdt<- join(sample.data, sdt, by="labels") ## First sample data and multimarker r
 sdt<- join(sdt, sdt18SEim, by="labels") ## then 18S read data 
 sdt<- join(sdt, data.inf.exp, by="labels") ## then qPCR data 
 sdt$dpi<- as.factor(sdt$dpi)
+
+#sdt%>%
+#  dplyr::mutate(ReadsEimsp= ReadsEim - sum(ReadsEimfer, ReadsEimfal, ReadsEimpap, ReadsEimtel, ReadsEimver, ReadsEimsch, ReadsEimmel, ReadsEimarn))
 ###Let's start plotting and analysing the data!
 ### 1) Correlation among Eimeria quantification methods
 ####OPG vs reads Eimeria (Multiamplicon) 
@@ -227,6 +230,7 @@ sdt%>%
   theme_bw()+
   theme(text = element_text(size=16))-> b
 
+### By Eimeria species read count 
 sdt%>%
   ggplot(aes(dpi, ReadsEimfer))+
   geom_boxplot()+
@@ -252,6 +256,36 @@ sdt%>%
   geom_boxplot()+
   xlab("Day post infection")+
   scale_y_log10("log10 Sequence reads count \n Multiamplicon (Eimeria telekii)")+
+  geom_jitter(shape=21, position=position_jitter(0.2), size=2.5, aes(fill= dpi), color= "black")+
+  labs(tag= "B)")+
+  theme_bw()+
+  theme(text = element_text(size=16))
+
+sdt%>%
+  ggplot(aes(dpi, ReadsEimpap))+
+  geom_boxplot()+
+  xlab("Day post infection")+
+  scale_y_log10("log10 Sequence reads count \n Multiamplicon (Eimeria papillata)")+
+  geom_jitter(shape=21, position=position_jitter(0.2), size=2.5, aes(fill= dpi), color= "black")+
+  labs(tag= "B)")+
+  theme_bw()+
+  theme(text = element_text(size=16))
+
+sdt%>%
+  ggplot(aes(dpi, ReadsEimver))+
+  geom_boxplot()+
+  xlab("Day post infection")+
+  scale_y_log10("log10 Sequence reads count \n Multiamplicon (Eimeria vermiformis)")+
+  geom_jitter(shape=21, position=position_jitter(0.2), size=2.5, aes(fill= dpi), color= "black")+
+  labs(tag= "B)")+
+  theme_bw()+
+  theme(text = element_text(size=16))
+
+sdt%>%
+  ggplot(aes(dpi, ReadsEimsch))+
+  geom_boxplot()+
+  xlab("Day post infection")+
+  scale_y_log10("log10 Sequence reads count \n Multiamplicon (Eimeria scholtysecki)")+
   geom_jitter(shape=21, position=position_jitter(0.2), size=2.5, aes(fill= dpi), color= "black")+
   labs(tag= "B)")+
   theme_bw()+
