@@ -1,7 +1,7 @@
 ### Code to analyse
-## 1) Correlation among quantification methods
-## 2) Course of infection by quantification method 
-## 3) Time-series models 
+## 1) Correlation among DNA quantification methods
+## 2) Course of infection by DNA quantification method 
+
 library("lifecycle", lib.loc="/usr/local/lib/R/site-library") 
 library("ggplot2")
 library("data.table")
@@ -21,6 +21,10 @@ library("grid")
 library("ggsci")
 library("knitr")
 library("kableExtra")
+
+if(!exists("sample.data")){
+  source("~/GitProjects/Eimeria_Microbiome/R/1_Data_preparation.R")
+}
 
 #if(!exists("sdt")){
 #  source("~/GitProjects/Eimeria_Microbiome/R/4_Phyloseq_Multimarker.R")
@@ -54,7 +58,6 @@ if(!exists("sdt18SEim")){
 if(!exists("data.inf.exp")){
   data.inf.exp<- read.csv(file="/SAN/Victors_playground/Eimeria_microbiome/qPCR/sample_data_qPCR.csv")
 }
-
 
 setdiff(sample.data$labels, sdt$labels)
 setdiff(sample.data$labels, sdt18SEimMulti$labels)
@@ -203,6 +206,24 @@ sdt%>%
   stat_cor(label.x = 5.5, label.y = 1.5, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
   stat_regline_equation(label.x = 5.5, label.y = 2)+
   stat_cor(label.x = 5.5,  label.y = 1,method = "spearman")+
+  annotation_logticks()#-> opgqpcr
+
+sdt%>%
+  ggplot(aes(OPG, Genome_copies_mean))+
+  geom_smooth(method = lm)+
+  scale_x_log10(name = "log10 Oocyst per gram feces (Flotation)", 
+                breaks = scales::trans_breaks("log10", function(x) 10^x),
+                labels = scales::trans_format("log10", scales::math_format(10^.x)))+
+  scale_y_log10(name = "log10 Eimeria genome copies (qPCR)", 
+                breaks = scales::trans_breaks("log10", function(x) 10^x),
+                labels = scales::trans_format("log10", scales::math_format(10^.x)))+
+  geom_jitter(shape=21, position=position_jitter(0.2), size=5, aes(fill= dpi), color= "black")+
+  labs(tag= "C)")+
+  theme_bw()+
+  theme(text = element_text(size=16))+
+  stat_cor(label.x = 5.5, label.y = 2.5, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
+  stat_regline_equation(label.x = 5.5, label.y = 3)+
+  stat_cor(label.x = 5.5,  label.y = 2,method = "spearman")+
   annotation_logticks()-> opgqpcr
 
 ####qPCR vs Multiamplicon
@@ -519,66 +540,6 @@ sdt%>%
   theme(text = element_text(size=16))
 
 sdt%>%
-  ggplot(aes(dpi, ReadsEimfal))+
-  geom_boxplot()+
-  xlab("Day post infection")+
-  scale_y_log10("log10 Sequence reads count \n Multiamplicon (Eimeria falciformis)", 
-                breaks = scales::trans_breaks("log10", function(x) 10^x),
-                labels = scales::trans_format("log10", scales::math_format(10^.x)))+
-  geom_jitter(shape=21, position=position_jitter(0.2), size=2.5, aes(fill= dpi), color= "black")+
-  labs(tag= "B)")+
-  theme_bw()+
-  theme(text = element_text(size=16))
-
-sdt%>%
-  ggplot(aes(dpi, ReadsEimtel))+
-  geom_boxplot()+
-  xlab("Day post infection")+
-  scale_y_log10("log10 Sequence reads count \n Multiamplicon (Eimeria telekii)", 
-                breaks = scales::trans_breaks("log10", function(x) 10^x),
-                labels = scales::trans_format("log10", scales::math_format(10^.x)))+
-  geom_jitter(shape=21, position=position_jitter(0.2), size=2.5, aes(fill= dpi), color= "black")+
-  labs(tag= "B)")+
-  theme_bw()+
-  theme(text = element_text(size=16))
-
-sdt%>%
-  ggplot(aes(dpi, ReadsEimpap))+
-  geom_boxplot()+
-  xlab("Day post infection")+
-  scale_y_log10("log10 Sequence reads count \n Multiamplicon (Eimeria papillata)", 
-                breaks = scales::trans_breaks("log10", function(x) 10^x),
-                labels = scales::trans_format("log10", scales::math_format(10^.x)))+
-  geom_jitter(shape=21, position=position_jitter(0.2), size=2.5, aes(fill= dpi), color= "black")+
-  labs(tag= "B)")+
-  theme_bw()+
-  theme(text = element_text(size=16))
-
-sdt%>%
-  ggplot(aes(dpi, ReadsEimver))+
-  geom_boxplot()+
-  xlab("Day post infection")+
-  scale_y_log10("log10 Sequence reads count \n Multiamplicon (Eimeria vermiformis)", 
-                breaks = scales::trans_breaks("log10", function(x) 10^x),
-                labels = scales::trans_format("log10", scales::math_format(10^.x)))+
-  geom_jitter(shape=21, position=position_jitter(0.2), size=2.5, aes(fill= dpi), color= "black")+
-  labs(tag= "B)")+
-  theme_bw()+
-  theme(text = element_text(size=16))
-
-sdt%>%
-  ggplot(aes(dpi, ReadsEimsch))+
-  geom_boxplot()+
-  xlab("Day post infection")+
-  scale_y_log10("log10 Sequence reads count \n Multiamplicon (Eimeria scholtysecki)", 
-                breaks = scales::trans_breaks("log10", function(x) 10^x),
-                labels = scales::trans_format("log10", scales::math_format(10^.x)))+
-  geom_jitter(shape=21, position=position_jitter(0.2), size=2.5, aes(fill= dpi), color= "black")+
-  labs(tag= "B)")+
-  theme_bw()+
-  theme(text = element_text(size=16))
-
-sdt%>%
   dplyr::arrange(dpi)%>%
   ggplot(aes(as.numeric(as.character(dpi)), ReadsEim2, colour= EH_ID))+
   xlab("Day post infection")+
@@ -594,8 +555,6 @@ sdt%>%
   stat_smooth(color= "black", method = "loess")+
   annotation_logticks(sides = "l")-> b2
 
-
-
 ggpaired(comp, x= "dpi", y= "ReadsEim2",line.color= "gray", line.size= 0.4, color= "dpi")+
   scale_y_log10("log10 Sequence reads count \n Multiamplicon (Eimeria)", 
                 breaks = scales::trans_breaks("log10", function(x) 10^x),
@@ -606,6 +565,19 @@ ggpaired(comp, x= "dpi", y= "ReadsEim2",line.color= "gray", line.size= 0.4, colo
   theme_bw()+
   theme(text = element_text(size=16))+
   annotation_logticks(sides = "l")-> b3
+
+sdt%>%
+  ggplot(aes(dpi, Genome_copies_mean))+
+  geom_boxplot()+
+  xlab("Day post infection")+
+  scale_y_log10(name = "log10 Eimeria genome copies (qPCR)", 
+                breaks = scales::trans_breaks("log10", function(x) 10^x),
+                labels = scales::trans_format("log10", scales::math_format(10^.x)))+ 
+  geom_jitter(shape=21, position=position_jitter(0.2), size=2.5, aes(fill= dpi), color= "black")+
+  labs(tag= "B)")+
+  theme_bw()+
+  theme(text = element_text(size=16))+
+  annotation_logticks(sides = "l")-> c
 
 sdt%>%
   ggplot(aes(dpi, Genome_copies_mean))+
@@ -691,6 +663,10 @@ pdf(file = "~/AA_Microbiome/Figures/Figure_3.pdf", width = 15, height = 10)
 grid.arrange(a,c,b,d, ncol= 2, nrow= 2)
 dev.off()
 
+pdf(file = "~/AA_Microbiome/Figures/Oocysts_qPCR_Manuscript/Figure_2.pdf", width = 10, height = 20)
+grid.arrange(a,c,opgqpcr, ncol= 1, nrow= 3)
+dev.off()
+
 pdf(file = "~/AA_Microbiome/Figures/Figure_4.pdf", width = 15, height = 10)
 grid.arrange(a2,c2,b2,d2, ncol= 2, nrow= 2)
 dev.off()
@@ -702,43 +678,6 @@ dev.off()
 pdf(file = "~/AA_Microbiome/Figures/Course_inf_Multi.pdf", width = 20, height = 7)
 grid.arrange(b,bi,bii, ncol= 3, nrow= 1)
 dev.off()
-
-##For time series graph (under construction)
-require("reshape")
-
-sdt_reshape<- melt(sdt, id.vars = "EH_ID")
-
-sdt_reshape%>%
-  select(EH_ID)%>%
-  plyr::join(sdt, by = "EH_ID")%>%
-  group_by(EH_ID)%>%
-  ggplot(aes(x= dpi, y= OPG))+
-  geom_line()
-
-library("TSrepr")
-
-sdt%>%
-  dplyr::group_by(EH_ID)%>%
-  dplyr::arrange(as.factor(as.character(dpi)))%>%
-  select(dpi,OPG,Qty_mean, ReadsEim, ReadsEim18S)%>%
-  filter(EH_ID%in%c("LM0206"))
-
-sdt%>%
-  ggplot(aes(Qty_mean, OPG))+
-  geom_smooth(method = lm)+
-  scale_y_log10(name = "log10 Oocyst per gram feces (Flotation)")+
-  scale_x_log10(name = "log10 Number of Eimeria Oocysts (qPCR)")+
-  geom_jitter(shape=21, position=position_jitter(0.2), size=5, aes(fill= dpi), color= "black")+
-  labs(tag= "C)")+
-  theme_bw()+
-  theme(text = element_text(size=16))+
-  stat_cor(label.x = 4.5, label.y = 2.5, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
-  stat_regline_equation(label.x = 4.5, label.y = 3)+
-  stat_cor(label.x = 4.5,  label.y = 2,method = "spearman")
-
-summary(lm(OPG~Qty_mean*dpi,  data = sdt))
-summary(lm(OPG~Qty_mean,  data = sdt))
-summary(lm(OPG~Qty_mean+dpi,  data = sdt))
 
 ###### Alpha and beta diversity analysis (Need an extra script)
 
