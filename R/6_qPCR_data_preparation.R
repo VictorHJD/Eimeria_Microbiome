@@ -384,17 +384,16 @@ if(Mock){
 ###### Infection experiment samples ########
 if(Infexp){
 ## Considering the standard curve generated with the data from the BioRad Cycler
-#Ct = 38 -4(log10Number of Oocysts)
-# Number of oocysts = 10^((Ct-38)/-4)
-# Number of genome copies = Number of oocysts*8
+#Ct = 42x -4(log10Number of genome number per uL gDNA) Figure 1.1B
+# Number of genome copies = 10^((Ct-42)/-4)
 
-##Estimate number of Oocysts with qPCR Ct value 
+##Estimate number of genome copies with qPCR Ct value 
 
 ##Define real positive and negatives based on Tm 
 data.inf %>% 
   dplyr::mutate(Infection = case_when(is.na(Tm)  ~ "Negative",
                                       Tm >= 80   ~ "Negative", Tm < 80 ~ "Positive"))%>%
-  dplyr::mutate(Qty= 10^((Ct-38)/-4), Genome_copies= Qty*8) -> data.inf
+  dplyr::mutate(Qty= 10^((Ct-42)/-4), Genome_copies= 10^((Ct-42)/-4)) -> data.inf
 
 data.inf %>%
   select(Tm, Qty, Genome_copies, labels) %>% # select variables to summarise
@@ -406,9 +405,9 @@ data.inf %>%
 data.inf<- join(data.inf, Sum.inf, by= "labels")
 
 data.inf%>%
-  select(labels, Qty_mean, Genome_copies_mean, Tm_mean, Infection)%>%
+  select(labels, Genome_copies_mean, Tm_mean, Infection)%>%
   filter(!labels%in%c("Pos_Ctrl","Neg_Ctrl","FML"))%>% ## Replace NAs in real negative samples to 0 
-  dplyr::mutate(Qty_mean= replace_na(Qty_mean, 0), Genome_copies_mean= replace_na(Genome_copies_mean, 0))-> data.inf.exp
+  dplyr::mutate(Genome_copies_mean= replace_na(Genome_copies_mean, 0))-> data.inf.exp
 
 #write.csv(data.inf.exp, "/SAN/Victors_playground/Eimeria_microbiome/qPCR/sample_data_qPCR.csv", row.names = FALSE)
 }
