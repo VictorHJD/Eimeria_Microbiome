@@ -70,8 +70,8 @@ data.std%>%
   select(Sample.Name,Task,Std_series,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm,Date)%>%
   filter(Task=="Standard" & Cycler=="ABI" & Std_series%in%c("A","B"))%>%
   dplyr::group_by(Parasite)%>%
-  ggplot(aes(Qty, Ct))+
-  scale_x_log10("log 10 Eimeria Oocyst (Flotation)", 
+  ggplot(aes(Qty*8, Ct))+
+  scale_x_log10("log 10 Eimeria genome copies/µL gDNA", 
                 breaks = scales::trans_breaks("log10", function(x) 10^x),
                 labels = scales::trans_format("log10", scales::math_format(10^.x)))+
   geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 25, fill= Date), color= "black", alpha= 0.5)+
@@ -86,7 +86,7 @@ data.std%>%
   theme(text = element_text(size=20), legend.position = "none")+
   annotation_logticks(sides = "b") -> A
 
-summary(lm(formula = log10(Oocyst_count)~Ct, data = subset(data.std, Cycler=="ABI" & Task== "Standard" & Std_series%in%c("A","B"))))
+summary(lm(formula = log10(Qty*8)~Ct, data = subset(data.std, Cycler=="ABI" & Task== "Standard" & Std_series%in%c("A","B"))))
 
 ##Final standard curve for Inf. experiment samples 
 ## Eimeria Oocysts
@@ -95,8 +95,8 @@ data.std%>%
   filter(Task=="Standard" & Parasite=="E_falciformis" & Cycler=="BioRad")%>%
   dplyr::group_by(Sample.Name)%>%
   #filter(Sample.Name!="Eimeria_10_0")%>%
-  ggplot(aes(Qty, Ct))+
-  scale_x_log10("log 10 Eimeria Oocyst (Flotation)", 
+  ggplot(aes(Qty*8, Ct))+
+  scale_x_log10("log 10 Eimeria genome copies/µL gDNA", 
                 breaks = scales::trans_breaks("log10", function(x) 10^x),
                 labels = scales::trans_format("log10", scales::math_format(10^.x)))+
   geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 25, fill= Std_series), color= "black", alpha= 0.5)+
@@ -116,8 +116,8 @@ data.std%>%
   filter(Task=="Standard" & Parasite=="E_falciformis" & Cycler%in%c("BioRad", "ABI"))%>%
   dplyr::group_by(Sample.Name)%>%
   #filter(Sample.Name!="Eimeria_10_0")%>%
-  ggplot(aes(Qty, Ct))+
-  scale_x_log10("log 10 Eimeria Oocysts (Flotation)", 
+  ggplot(aes(Qty*8, Ct))+
+  scale_x_log10("log 10 Eimeria genome copies/µL gDNA", 
                 breaks = scales::trans_breaks("log10", function(x) 10^x),
                 labels = scales::trans_format("log10", scales::math_format(10^.x)))+
   geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 25, fill= Cycler), color= "black", alpha= 0.5)+
@@ -184,17 +184,17 @@ summary(lm(formula = log10(Oocyst_count)~Ct, data = subset(data.std, Cycler=="Bi
 if(Unknowns){
 data.unk%>%
   select(Sample.Name, Task, Ct,Qty,Cycler,Parasite, Sample_type, Tm, Oocyst_1, Oocyst_2, Oocyst_3, Oocyst_4, Oocyst_5,Oocyst_6, Oocyst_7, Oocyst_8, Dilution_factor, Volume)%>%
-  #dplyr::mutate(Qty= 10^((Ct-33)/-3.1))%>%
+  dplyr::mutate(Qty= 10^((Ct-36)/-3.1))%>% ## Considering ABI std curve (Fig.1A)
   filter(Sample_type=="Oocysts" & Task=="Unknown" & Cycler== "ABI")%>%
   dplyr::group_by(Sample.Name)%>%
   dplyr::mutate(N= n())%>%
   dplyr::mutate(Total_oocysts= (sum(Oocyst_1, Oocyst_2, Oocyst_3, Oocyst_4, Oocyst_5,Oocyst_6, Oocyst_7, Oocyst_8))/N)%>%
-  dplyr::mutate(Oocyst_count= (((Total_oocysts*10000)/8)*Dilution_factor)*Volume)%>%
+  dplyr::mutate(Oocyst_count= (((Total_oocysts*10000)/8)*Dilution_factor))%>% ##Concentration of Oocyst in the solution
   ggplot(aes(Oocyst_count,Qty), geom=c("point", "smooth"))+
-  scale_x_log10(name = "log10 Eimeria Oocysts (Flotation)", 
+  scale_x_log10(name = "log10 Eimeria Oocysts count (Flotation)", 
                 breaks = scales::trans_breaks("log10", function(x) 10^x),
                 labels = scales::trans_format("log10", scales::math_format(10^.x)))+
-  scale_y_log10(name = "log10 Eimeria Oocysts (qPCR)", 
+  scale_y_log10(name = "log 10 Eimeria genome copies/µL gDNA \n (qPCR)", 
                 breaks = scales::trans_breaks("log10", function(x) 10^x),
                 labels = scales::trans_format("log10", scales::math_format(10^.x)))+ 
   geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 25, fill= Task), color= "black", alpha= 0.5)+
@@ -203,9 +203,9 @@ data.unk%>%
   theme(legend.text=element_text(size=20)) +
   theme(legend.key.size = unit(3,"line")) +
   geom_smooth(color= "black", method = "lm")+            
-  stat_cor(label.x = 5.5,  label.y = 4,method = "spearman")+
-  stat_cor(label.x = 5.5, label.y = 3.75,aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~")))+        # Add correlation coefficient
-  stat_regline_equation(label.x = 5.5, label.y = 4.25)+
+  stat_cor(label.x = 5.5,  label.y = 5,method = "spearman")+
+  stat_cor(label.x = 5.5, label.y = 4.75,aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~")))+        # Add correlation coefficient
+  stat_regline_equation(label.x = 5.5, label.y = 5.25)+
   guides(colour = guide_legend(override.aes = list(size=10))) +
   theme(text = element_text(size=20),legend.position = "none")+
   labs(tag = "A)")+
@@ -216,49 +216,7 @@ summary(lm(formula = log10(Oocyst_count)~log10(Qty), data = subset(data.unk, Sam
 }
 ########## Mock samples Experiment #########
 if(Mock){
-  ##Standard curve for this experiment 
-  set.seed(2020)
-  data.std%>%
-    select(Sample.Name,Task,Std_series,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm, Date)%>%
-    filter(Task=="Standard" & Cycler=="ABI" & Date=="300620")%>%
-    ggplot(aes(Qty, Ct), geom=c("point", "smooth"))+
-    scale_x_log10(name = "Number of Eimeria oocysts")+
-    geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 25, fill= Std_series), color= "black")+
-    geom_smooth(aes(color= Std_series, fill= Std_series), method = "lm")+            
-    stat_cor(aes(color = Std_series), label.x = 4,  label.y = c(35, 31),method = "spearman")+
-    stat_cor(label.x = 4, label.y = c(34, 30),aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"), color = Std_series))+        # Add correlation coefficient
-    stat_regline_equation(aes(color = Std_series), label.x = 3, label.y = c(35, 31))+
-    stat_summary(fun.data=mean_cl_boot, geom="pointrange", shape=16, size=0.5, color="black")+
-    labs(tag = "A)")+
-    theme_bw() +
-    theme(text = element_text(size=20), legend.position = "none")
-  
-  set.seed(2020)
-  data.std%>%
-    select(Sample.Name,Task,Std_series,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm, Date)%>%
-    filter(Task=="Standard" & Cycler=="ABI" & Date=="300620")%>%
-    ggplot(aes(x = Qty, y = Ct), geom=c("point", "smooth")) +
-    scale_x_log10(name = "log10 Eimeria oocysts (Flotation", 
-                  breaks = scales::trans_breaks("log10", function(x) 10^x),
-                  labels = scales::trans_format("log10", scales::math_format(10^.x))) +
-    scale_y_continuous(name = "Ct")+ 
-    geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 25, fill= Std_series), color= "black", alpha= 0.5)+
-    stat_summary(fun.data=mean_cl_boot, geom="pointrange", shape=16, size=0.5, color="black")+
-    theme_bw() +
-    theme(legend.text=element_text(size=20)) +
-    theme(legend.key.size = unit(3,"line")) +
-    geom_smooth(method = "lm", se = T, col = "black") +
-    guides(colour = guide_legend(override.aes = list(size=10))) +
-    theme(text = element_text(size=20),legend.position = "none")+
-    labs(tag = "A)")+
-    stat_cor(label.x = log10(100000), label.y = 31, method = "spearman")+
-    stat_cor(label.x = log10(100000), label.y = 30, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~")))+
-    stat_regline_equation(label.x = log10(100000), label.y = 32)+
-    annotation_logticks(sides = "b")
-  
   ##Mean comparison standars against NTC
-  #comp<- compare_means(Ct ~ Sample.Name,  data = subset(data.mock, Task%in%c("Standard", "NTC")), method = "t.test", p.adjust.method = "bonferroni")
-  
   set.seed(2020)
   data.std%>%
     select(Sample.Name,Task,Std_series,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm, Date)%>%
@@ -277,29 +235,29 @@ if(Mock){
     labs(tag = "A)")+
     geom_hline(yintercept = 30, linetype = 2)+
     stat_compare_means(method = "anova",
-                       aes(label = paste0(..method.., ",\n","p=",..p.format..)), label.y= 34, label.x = 7)+
+                       aes(label = paste0(..method.., ",\n","p=",..p.format..)), label.y= 33, label.x = 7)+
     stat_compare_means(label = "p.signif", method = "t.test",ref.group = "H2O", 
                        label.y = c(34, 31, 27, 24, 21, 17, 15, 0)) ##Determine that 10^0 meassurments are basically like NTC
   
-  ##Compair mock samples qPCR estimation with real oocyst count
+  ##Compair mock samples qPCR estimation with real oocyst count by two extraction methods
   set.seed(2020)
   data.unk%>%
     select(Sample.Name, Task, Ct,Qty,Cycler,Parasite, Sample_type, Feces_weight, Extraction, Oocyst_count)%>%
     filter(Sample_type=="Feces" & Task=="Unknown")%>%
-    dplyr::mutate(Qty= 10^((Ct-33)/-3.1))%>%
+    dplyr::mutate(Qty= 10^((Ct-36)/-3.1))%>%
     ggplot(aes(x = Oocyst_count, y = Qty, color=Extraction), geom=c("point", "smooth")) +
     scale_x_log10(name = "log10 Eimeria Oocysts (Flotation)", 
                   breaks = scales::trans_breaks("log10", function(x) 10^x),
                   labels = scales::trans_format("log10", scales::math_format(10^.x)))+
-    scale_y_log10(name = "log10 Eimeria Oocysts (qPCR)", 
+    scale_y_log10(name = "log10 Eimeria genome copies/µL gDNA", 
                   breaks = scales::trans_breaks("log10", function(x) 10^x),
                   labels = scales::trans_format("log10", scales::math_format(10^.x)))+ 
-    geom_jitter(shape=21, position=position_jitter(0.2), color= "black", aes(size= 25, fill= Extraction))+
+    geom_jitter(shape=21, position=position_jitter(0.2), color= "black", aes(size= 25, fill= Extraction), alpha= 0.5)+
     theme_bw() +
     geom_smooth(aes(color= Extraction, fill= Extraction), method = "lm")+
     facet_grid(cols = vars(Extraction))+
-    stat_cor(aes(color = Extraction), label.x = log10(1000),  label.y = log10(100000),method = "spearman")+
-    stat_cor(label.x = log10(1000), label.y = log10(50000), aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"), color = Extraction))+        # Add correlation coefficient
+    stat_cor(aes(color = Extraction), label.x = log10(100),  label.y = log10(100000),method = "spearman")+
+    stat_cor(label.x = log10(100), label.y = log10(50000), aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"), color = Extraction))+        # Add correlation coefficient
     stat_summary(fun.data=mean_cl_boot, geom="pointrange", shape=16, size=0.5, color="black")+
     #stat_regline_equation(aes(color = Std_series), label.x = 3, label.y = c(35, 31))
     theme(text = element_text(size=20),legend.position = "none")+
@@ -312,76 +270,61 @@ if(Mock){
   data.std%>%
     select(Sample.Name,Task,Std_series,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm,Sample_type,Feces_weight,Extraction,Date)%>%
     filter(Task%in%c("Standard", "NTC") & Cycler=="ABI" & Std_series%in%c("A","B"))%>%
+    dplyr::mutate(Qty= Qty*8) ##Transform to Genome copies per uL gDNA qPCR 
     dplyr::group_by(Parasite)-> Std.mock
   
   data.unk%>%
     select(Sample.Name,Task,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm,Sample_type,Feces_weight,Extraction,Date, NanoDrop)%>%
     filter(Sample_type=="Feces" & Task=="Unknown" & Extraction!="Glass_beads")%>%
-    dplyr::mutate(Qty= 10^((Ct-33)/-3.1), ## Transform Ct to Oocyst qPCR
-                  Genome_copies= Qty*8,   ## Transform Oocyst to Genome copies
+    dplyr::mutate(Qty= 10^((Ct-36)/-3.1), ## Transform Ct to Genome copies per uL gDNA qPCR
                   #GC_ngDNA= Genome_copies/NanoDrop, ## Estimate Genome copies by ng of fecal DNA
-                  GC_ngDNA= Genome_copies/50, ## Estimate Genome copies by ng of fecal DNA
+                  GC_ngDNA= Qty/50, ## Estimate Genome copies by ng of fecal DNA
                   DNA_sample= NanoDrop*40, ## Estimate total gDNA of sample
                   DNA_g_feces= DNA_sample/Feces_weight, ## Transform it to ng fecal DNA by g of feces
-                  GC_gfeces= GC_ngDNA*DNA_g_feces)%>% ## Estimate genome copies by g of feces
+                  GC_gfeces= GC_ngDNA*DNA_g_feces, ## Estimate genome copies by g of feces
+                  OPG=Oocyst_count/Feces_weight)%>% ## Estimate oocyst per g of feces for mock samples
     bind_rows(Std.mock)-> data.mock
   
   rm(Std.mock)
   
+  ##
+  set.seed(2020)
   data.mock%>%
     select(Sample.Name,Task,Qty,Ct,Oocyst_count)%>%  
     filter(Task%in%c("Standard", "Unknown"))%>%
-    ggplot(aes(x = Oocyst_count, y = Ct), geom=c("point", "smooth")) +
-    scale_x_log10(name = "Number of Eimeria oocysts", 
-                  breaks = scales::trans_breaks("log10", function(x) 10^x),
-                  labels = scales::trans_format("log10", scales::math_format(10^.x))) +
-    scale_y_continuous(name = "Ct")+ 
-    geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 25, fill= Task), color= "black")+
-    stat_summary(fun.data=mean_cl_boot, geom="pointrange", shape=16, size=0.5, color="black")+
-    theme_bw() +
-    theme(legend.text=element_text(size=20)) +
-    theme(legend.key.size = unit(3,"line")) +
-    geom_smooth(aes(color= Task, fill= Task), method = "lm")+            
-    stat_cor(aes(color = Task), label.x = 4,  label.y = c(35, 31),method = "spearman")+
-    stat_cor(label.x = 4, label.y = c(34, 30),aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"), color = Task))+        # Add correlation coefficient
-    stat_regline_equation(aes(color = Task), label.x = 3, label.y = c(35, 31))+
-    guides(colour = guide_legend(override.aes = list(size=10))) +
-    theme(text = element_text(size=20),legend.position = "none")+
-    labs(tag = "A)")+
-    annotation_logticks(sides = "b")
-  
-  data.mock%>%
-    select(Sample.Name,Task,Qty,Ct,Oocyst_count)%>%  
-    filter(Task%in%c("Standard", "Unknown"))%>%
-    ggplot(aes(x = Oocyst_count*8, y = Qty*8), geom=c("point", "smooth")) +
-    scale_x_log10(name = "log10 Eimeria genome copies (Flotation)", 
+    ggplot(aes(x = Oocyst_count, y = Qty), geom=c("point", "smooth")) +
+    scale_x_log10(name = "log10 Eimeria Oocyst count (Flotation)", 
                   breaks = scales::trans_breaks("log10", function(x) 10^x),
                   labels = scales::trans_format("log10", scales::math_format(10^.x)))+
-    scale_y_log10(name = "log10 Eimeria genome copies (qPCR)", 
+    scale_y_log10(name = "log10 Eimeria genome copies/µL gDNA \n (qPCR)", 
                   breaks = scales::trans_breaks("log10", function(x) 10^x),
                   labels = scales::trans_format("log10", scales::math_format(10^.x)))+ 
-    geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 25, fill= Task), color= "black")+
+    geom_jitter(shape=21, position=position_jitter(0.2), aes(fill= Task), size= 5, color= "black", alpha= 0.5)+
     stat_summary(fun.data=mean_cl_boot, geom="pointrange", shape=16, size=0.5, color="black")+
     theme_bw() +
     theme(legend.text=element_text(size=20)) +
     theme(legend.key.size = unit(3,"line")) +
     geom_smooth(aes(color= Task, fill= Task), method = "lm")+            
-    stat_cor(aes(color = Task), label.x = 2,  label.y = c(6, 5),method = "spearman")+
-    stat_cor(label.x = 2, label.y = c(5.5, 4.5),aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"), color = Task))+        # Add correlation coefficient
-    stat_regline_equation(aes(color = Task), label.x = 0.75, label.y = c(6, 5))+
+    stat_cor(aes(color = Task), label.x = 2,  label.y = c(7, 6),method = "spearman")+
+    stat_cor(label.x = 2, label.y = c(6.5, 5.5),aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"), color = Task))+        # Add correlation coefficient
+    stat_regline_equation(aes(color = Task), label.x = 0.75, label.y = c(7, 6))+
     guides(colour = guide_legend(override.aes = list(size=10))) +
     theme(text = element_text(size=20),legend.position = "none")+
     labs(tag = "B)")+
-    annotation_logticks(sides = "bl")
+    annotation_logticks(sides = "bl")+
+    theme(legend.position = c(0.85, 0.25), legend.direction = "vertical",
+          # Change legend key size and key width
+          legend.key.size = unit(0.25, "cm"),
+          legend.key.width = unit(0.15,"cm"))-> E
   
   data.mock%>%
-    select(Sample.Name,Task,Qty,Ct,Oocyst_count, GC_gfeces)%>%  
+    select(Sample.Name,Task,Qty,Ct,Oocyst_count, GC_gfeces, OPG)%>%  
     filter(Task== "Unknown")%>%
-    ggplot(aes(x = Oocyst_count, y = GC_gfeces), geom=c("point", "smooth")) +
-    scale_x_log10(name = "log10 Eimeria Oocysts (Flotation)", 
+    ggplot(aes(x = OPG, y = Qty), geom=c("point", "smooth")) +
+    scale_x_log10(name = "log10 Eimeria Oocysts per gram of feces (Flotation)", 
                   breaks = scales::trans_breaks("log10", function(x) 10^x),
                   labels = scales::trans_format("log10", scales::math_format(10^.x)))+
-    scale_y_log10(name = "log10 Eimeria \n Genome copies per gram feces (qPCR)", 
+    scale_y_log10(name = "log10 Eimeria genome copies/µL gDNA \n (qPCR)", 
                   breaks = scales::trans_breaks("log10", function(x) 10^x),
                   labels = scales::trans_format("log10", scales::math_format(10^.x)))+ 
     geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 25, fill= Task), color= "black", alpha= 0.5)+
@@ -390,17 +333,17 @@ if(Mock){
     theme(legend.text=element_text(size=20)) +
     theme(legend.key.size = unit(3,"line")) +
     geom_smooth(color= "black", method = "lm")+            
-    stat_cor(label.x = 2,  label.y = 8,method = "spearman")+
-    stat_cor(label.x = 2, label.y = 7.75,aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~")))+        # Add correlation coefficient
-    stat_regline_equation(label.x = 2, label.y = 8.25)+
+    stat_cor(label.x = 2,  label.y = 7,method = "spearman")+
+    stat_cor(label.x = 2, label.y = 6.75,aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~")))+        # Add correlation coefficient
+    stat_regline_equation(label.x = 2, label.y = 7.25)+
     guides(colour = guide_legend(override.aes = list(size=10))) +
     theme(text = element_text(size=20),legend.position = "none")+
     labs(tag = "C)")+
-    annotation_logticks(sides = "bl")
+    annotation_logticks(sides = "bl")-> G
   
-  #pdf(file = "~/AA_Microbiome/qPCR_Eimeria_Quantification/figures/ABI_Cycler/Fig_4_Mock.pdf", width = 10, height = 15)
-  #grid.arrange(f, G)
-  #dev.off()
+  pdf(file = "~/AA_Microbiome/Figures/Oocysts_qPCR_Manuscript/Figure_1.3.pdf", width = 20, height = 15)
+  grid.arrange(D,E,G, widths = c(1, 1), layout_matrix = rbind(c(1, 2), c(3, 3)))
+  dev.off()
   
   ##Mean comparison unknown samples against NTC
   compare_means(Ct ~ Sample.Name,  data = subset(data.mock, Task%in%c("Unknown", "NTC")), method = "t.test", p.adjust.method = "bonferroni")
