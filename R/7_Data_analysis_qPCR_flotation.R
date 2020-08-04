@@ -411,6 +411,102 @@ anova(lm(OPG~Genome_copies_mean+dpi+EH_ID,  data = sdt))
 summary(loess(OPG~Genome_copies_mean,  data = sdt, span = 0.1)) ## Using just genome copies as predictor
 predict(loess(OPG~Genome_copies_mean,  data = sdt, span = 0.1))
 
+## DNA as a predictor of weightloss
+sdt%>%
+  ggplot(aes(Genome_copies_mean, (weight/weight_dpi0)*100))+
+  geom_smooth(method = lm)+
+  scale_y_continuous(name = "Relative weight loss to 0 dpi (%)")+
+  scale_x_log10(name = "log10 Genome copies/µL gDNA (qPCR)", 
+                breaks = scales::trans_breaks("log10", function(x) 10^x),
+                labels = scales::trans_format("log10", scales::math_format(10^.x)))+
+  #annotation_logticks("b")+
+  geom_jitter(shape=21, position=position_jitter(0.2), size=5, aes(fill= dpi), color= "black")+
+  labs(tag= "B)")+
+  theme_bw()+
+  theme(text = element_text(size=16))+
+  stat_cor(label.x = 2.0, label.y = 84, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
+  stat_regline_equation(label.x = 2.0, label.y = 88)+
+  stat_cor(label.x = 2.0,  label.y = 86,method = "spearman")-> wlqpcr
+
+## Weight loss
+sdt%>%
+  ggplot(aes(dpi, (weight/weight_dpi0)*100))+
+  geom_boxplot()+
+  xlab("Day post infection")+
+  scale_y_continuous("Relative weight loss at 0 dpi (%)")+
+  geom_jitter(shape=21, position=position_jitter(0.2), size=2.5, aes(fill= dpi), color= "black")+
+  labs(tag= "A)")+
+  theme_bw()+
+  theme(text = element_text(size=16))-> ai
+
+### Predictions Early DNA vs Late Oocysts
+sdt%>%
+  filter(dpi%in%c("3","4", "6", "7", "8", "9", "10"))%>%
+  select(EH_ID, dpi,OPG, Genome_copies_mean, weight, weight_dpi0)%>%
+  dplyr::arrange(EH_ID)%>%
+  dplyr::arrange(dpi)%>% ##for comparison 
+  ggplot(aes(x= dpi, y= (weight/weight_dpi0)*100))+
+  scale_y_continuous("Relative weight loss at 0 dpi (%)")+
+  geom_boxplot(aes(color= dpi))+
+  geom_point(aes(color=dpi))+
+  xlab("Day post infection")+
+  geom_line(aes(group = EH_ID), color= "gray")+
+  scale_color_npg()+
+  labs(tag= "A)")+
+  theme_bw()+
+  theme(text = element_text(size=16))+
+  #stat_compare_means(label= "p.signif", method = "wilcox.test", ref.group = "3", paired = TRUE, na.rm = TRUE)+
+  stat_compare_means(method =  "anova")-> weight3_10
+
+compare_means(formula = Genome_copies_mean~dpi, method = "wilcox.test", ref.group = "3",paired = TRUE, data = sdt)
+
+##for comparison between early DNA and Pick oocysts
+sdt%>%
+  filter(dpi%in%c("3","6"))%>%
+  select(EH_ID, dpi,OPG, Genome_copies_mean, weight, weight_dpi0)%>%
+  dplyr::arrange(EH_ID)%>%
+  dplyr::arrange(dpi)%>% 
+  ggplot(aes(x= dpi, y= (weight/weight_dpi0)*100))+
+  scale_y_continuous("Relative weight loss at 0 dpi (%)")+
+  geom_boxplot(aes(color= dpi))+
+  geom_point(aes(color=dpi))+
+  xlab("Day post infection")+
+  geom_line(aes(group = EH_ID), color= "gray")+
+  scale_color_npg()+
+  labs(tag= "A)")+
+  theme_bw()+
+  theme(text = element_text(size=16))-> weight36
+
+sdt%>%
+  dplyr::arrange(dpi)%>%
+  filter(dpi%in%c("6"))%>%
+  select(EH_ID,dpi, weight, weight_dpi0, weightloss)-> pickweight
+
+elopw<- join(earlyDNA, pickweight, by= "EH_ID")
+rm(pickweight)
+
+set.seed(2020)
+elopw%>%
+  select(EH_ID,Genome_copies_mean, weight, weight_dpi0, weightloss)%>%
+  ggplot(aes(Genome_copies_mean, (weight/weight_dpi0)*100))+
+  geom_smooth(method = lm)+
+  scale_x_log10(name = "log10 Genome copies/µL gDNA dpi 3 (qPCR)", 
+                breaks = scales::trans_breaks("log10", function(x) 10^x),
+                labels = scales::trans_format("log10", scales::math_format(10^.x)))+
+  scale_y_continuous("Weight loss at 6 dpi")+
+  geom_jitter(shape=21, position=position_jitter(0.2), size=5, aes(fill= EH_ID), color= "black")+
+  labs(tag= "C)")+
+  theme_bw()+
+  theme(text = element_text(size=16))+
+  stat_cor(label.x = 2.25, label.y = 83.5, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
+  stat_regline_equation(label.x = 2.25, label.y = 87.5)+
+  stat_cor(label.x = 2.25,  label.y = 85,method = "spearman")+
+  annotation_logticks("b")+
+  coord_cartesian(ylim = c(10000, 10000000))-> elopp
+
+summary(lm(OPG~Genome_copies_mean,  data = elop)) ## Using just genome copies as predictor
+anova(lm(OPG~Genome_copies_mean,  data = elod))
+
 ##Save plots
 pdf(file = "~/AA_Microbiome/Figures/Oocysts_qPCR_Manuscript/Figure_3.pdf", width = 10, height = 20)
 grid.arrange(a,b,opgqpcr, ncol= 1, nrow= 3)
