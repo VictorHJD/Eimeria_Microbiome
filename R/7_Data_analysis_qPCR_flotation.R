@@ -130,7 +130,7 @@ sdt%>%
 
 ### Predictions Early DNA vs Late Oocysts
 sdt%>%
-  filter(dpi%in%c("3","4", "6", "7", "8", "9", "10"))%>%
+  filter(dpi%in%c("0","1","2","3","4", "6", "7", "8", "9", "10"))%>%
   select(EH_ID, dpi,OPG, Genome_copies_mean)%>%
   dplyr::arrange(EH_ID)%>%
   dplyr::arrange(dpi)%>% ##for comparison 
@@ -153,7 +153,7 @@ sdt%>%
   compare_means(formula = Genome_copies_mean~dpi, method = "wilcox.test", ref.group = "3",paired = TRUE, data = sdt)
 
   sdt%>%
-    filter(dpi%in%c("3","4", "6", "7", "8", "9", "10"))%>%
+    filter(dpi%in%c("0","1","2","3","4", "6", "7", "8", "9", "10"))%>%
     select(EH_ID, dpi,OPG, Genome_copies_mean)%>%
     dplyr::arrange(EH_ID)%>%
     dplyr::arrange(dpi)%>% ##for comparison 
@@ -397,8 +397,8 @@ elob%>%
 summary(lm(OPG~Genome_copies_mean,  data = elob)) ## Using just genome copies as predictor
 anova(lm(OPG~Genome_copies_mean,  data = elob))
 
-##Using linear models for time-series analysis
-summary(lm(OPG~Genome_copies_mean,  data = sdt)) ## Using just genome copies as predictor
+##Using lm for time-series analysis
+summary(glm.nb(OPG~Genome_copies_mean,  data = sdt)) ## Using just genome copies as predictor
 anova(lm(OPG~Genome_copies_mean,  data = sdt))
 summary(lm(OPG~Genome_copies_mean+dpi,  data = sdt)) ## Genome copies and dpi as predictors
 anova(lm(OPG~Genome_copies_mean+dpi,  data = sdt))
@@ -406,6 +406,50 @@ summary(lm(OPG~Genome_copies_mean*dpi,  data = sdt)) ## Genome copies and dpi an
 anova(lm(OPG~Genome_copies_mean*dpi,  data = sdt))
 summary(lm(OPG~Genome_copies_mean+dpi+EH_ID,  data = sdt)) ## Genome copies, dpi and individual as predictors 
 anova(lm(OPG~Genome_copies_mean+dpi+EH_ID,  data = sdt))
+
+## Create Time-Series
+require("reshape")
+sdt%>%
+  dplyr::select(EH_ID, dpi, Genome_copies_mean, labels)%>%
+  dplyr::arrange(EH_ID)%>%
+  dplyr::arrange(dpi)-> dna
+dna<- na.omit(dna)  
+plot(dna$Genome_copies_mean)
+
+sdt%>%
+  dplyr::select(EH_ID, dpi, OPG, labels)%>%
+  dplyr::arrange(EH_ID)%>%
+  dplyr::arrange(dpi)-> oocysts
+oocysts<- na.omit(oocysts)  
+plot(oocysts$OPG)
+
+sdt.2<-join(oocysts, dna, by= "labels")
+sdt.2%>%
+  dplyr::select(1,2,3,4,7)->sdt.2
+
+sdt.2<-na.omit(sdt.2)
+compare_means(formula = Genome_copies_mean~dpi, method = "wilcox.test", ref.group = "3", data = sdt.2)
+
+sdt.2%>%
+  filter(dpi%in%c("0","1","2","3","4", "5","6", "7", "8", "9", "10"))%>%
+  dplyr::select(EH_ID, dpi,OPG, Genome_copies_mean)%>%
+  dplyr::arrange(EH_ID)%>%
+  dplyr::arrange(dpi)%>% ##for comparison 
+  ggplot(aes(x= dpi, y= Genome_copies_mean))+
+  scale_y_log10("log10 Genome copies/µL gDNA (qPCR)", 
+                breaks = scales::trans_breaks("log10", function(x) 10^x),
+                labels = scales::trans_format("log10", scales::math_format(10^.x)))+
+  geom_boxplot(aes(color= dpi))+
+  geom_point(aes(color=dpi))+
+  xlab("Day post infection")+
+  geom_line(aes(group = EH_ID), color= "gray")+
+  scale_color_npg()+
+  labs(tag= "A)")+
+  theme_bw()+
+  theme(text = element_text(size=16))+
+  annotation_logticks(sides = "l")+
+  stat_compare_means(label= "p.signif", method = "wilcox.test", ref.group = "0", na.rm = TRUE)+
+  stat_compare_means()
 
 ##Using local regression models (non-parametric approach that fits multiple regressions in local neighborhood)
 summary(loess(OPG~Genome_copies_mean,  data = sdt, span = 0.1)) ## Using just genome copies as predictor
@@ -493,7 +537,7 @@ elopw%>%
   scale_x_log10(name = "log10 Genome copies/µL gDNA dpi 3 (qPCR)", 
                 breaks = scales::trans_breaks("log10", function(x) 10^x),
                 labels = scales::trans_format("log10", scales::math_format(10^.x)))+
-  scale_y_continuous("Weight loss at 6 dpi")+
+  scale_y_continuous("Relative Weight loss at 6 to 0 dpi")+
   geom_jitter(shape=21, position=position_jitter(0.2), size=5, aes(fill= EH_ID), color= "black")+
   labs(tag= "C)")+
   theme_bw()+
@@ -503,9 +547,6 @@ elopw%>%
   stat_cor(label.x = 2.25,  label.y = 85,method = "spearman")+
   annotation_logticks("b")+
   coord_cartesian(ylim = c(10000, 10000000))-> elopp
-
-summary(lm(OPG~Genome_copies_mean,  data = elop)) ## Using just genome copies as predictor
-anova(lm(OPG~Genome_copies_mean,  data = elod))
 
 ##Save plots
 pdf(file = "~/AA_Microbiome/Figures/Oocysts_qPCR_Manuscript/Figure_3.pdf", width = 10, height = 20)
