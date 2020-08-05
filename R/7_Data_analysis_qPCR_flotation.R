@@ -494,6 +494,12 @@ dpi6.opg <- glm.nb(formula = OPG.6~ Genome_copies_mean.0+
 summary(dpi6.opg)
 plot(dpi6.opg)
 tab_model(dpi6.opg)
+
+##extract p values for bonferroni correction
+p.dpi6.opg<- as.data.frame(coef(summary(dpi6.opg))[,'Pr(>|z|)'])
+colnames(p.dpi6.opg)<- "P_unadjusted"
+p.dpi6.opg$P_adjusted<-p.adjust(p.dpi6.opg$`P_unadjusted`, method = "bonferroni")
+
 ##Using local regression models (non-parametric approach that fits multiple regressions in local neighborhood)
 summary(loess(OPG~Genome_copies_mean,  data = sdt, span = 0.1)) ## Using just genome copies as predictor
 predict(loess(OPG~Genome_copies_mean,  data = sdt, span = 0.1))
