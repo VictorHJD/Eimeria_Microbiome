@@ -51,7 +51,7 @@ sdt$dpi<- as.factor(sdt$dpi)
 ####OPG vs qPCR 
 sdt%>%
   ggplot(aes(OPG, Genome_copies_mean))+
-  geom_smooth(method = lm)+
+  geom_smooth(method = lm, col= "black")+
   scale_x_log10(name = "log10 Oocyst per gram feces (Flotation)", 
                 breaks = scales::trans_breaks("log10", function(x) 10^x),
                 labels = scales::trans_format("log10", scales::math_format(10^.x)))+
@@ -66,6 +66,8 @@ sdt%>%
   stat_regline_equation(label.x = 5.5, label.y = 2)+
   stat_cor(label.x = 5.5,  label.y = 1,method = "spearman")+
   annotation_logticks()-> opgqpcr
+
+summary(lm(OPG~Genome_copies_mean,  data = sdt, na.action = na.exclude)) ## Using just genome copies as predictor
 
 ###Course of infection 
 ## Oocysts
@@ -198,7 +200,7 @@ sdt%>%
 
 sdt%>%
   filter(dpi%in%c("3","6"))%>%
-  select(EH_ID, dpi,OPG, Genome_copies_mean)%>%
+  dplyr::select(EH_ID, dpi,OPG, Genome_copies_mean)%>%
   dplyr::arrange(EH_ID)%>%
   dplyr::arrange(dpi)%>% 
   ggplot(aes(x= dpi, y= Genome_copies_mean))+
@@ -231,7 +233,7 @@ rm(pickOoc)
 
 set.seed(2020)
 elop%>%
-  select(EH_ID,Genome_copies_mean,OPG)%>%
+  dplyr::select(EH_ID,Genome_copies_mean,OPG)%>%
   ggplot(aes(Genome_copies_mean, OPG))+
   geom_smooth(method = lm)+
   scale_x_log10(name = "log10 Genome copies/µL gDNA dpi 3 (qPCR)", 
@@ -303,7 +305,7 @@ elod<- join(earlyDNA, lateOoc, by= "EH_ID")
 
 set.seed(2020)
 elod%>%
-  select(EH_ID,Genome_copies_mean,OPG)%>%
+  dplyr::select(EH_ID,Genome_copies_mean,OPG)%>%
   ggplot(aes(Genome_copies_mean, OPG))+
   geom_smooth(method = lm)+
   scale_x_log10(name = "log10 Genome copies/µL gDNA dpi 3 (qPCR)", 
@@ -375,7 +377,7 @@ elob<- join(earlyDNA, beforeOoc, by= "EH_ID")
 
 set.seed(2020)
 elob%>%
-  select(EH_ID,Genome_copies_mean,OPG)%>%
+  dplyr::select(EH_ID,Genome_copies_mean,OPG)%>%
   ggplot(aes(Genome_copies_mean, OPG))+
   geom_smooth(method = lm)+
   scale_x_log10(name = "log10 Genome copies/µL gDNA dpi 3 (qPCR)", 
@@ -398,59 +400,100 @@ summary(lm(OPG~Genome_copies_mean,  data = elob)) ## Using just genome copies as
 anova(lm(OPG~Genome_copies_mean,  data = elob))
 
 ##Using lm for time-series analysis
-summary(glm.nb(OPG~Genome_copies_mean,  data = sdt)) ## Using just genome copies as predictor
-anova(lm(OPG~Genome_copies_mean,  data = sdt))
-summary(lm(OPG~Genome_copies_mean+dpi,  data = sdt)) ## Genome copies and dpi as predictors
-anova(lm(OPG~Genome_copies_mean+dpi,  data = sdt))
-summary(lm(OPG~Genome_copies_mean*dpi,  data = sdt)) ## Genome copies and dpi and interactions as predictors
-anova(lm(OPG~Genome_copies_mean*dpi,  data = sdt))
-summary(lm(OPG~Genome_copies_mean+dpi+EH_ID,  data = sdt)) ## Genome copies, dpi and individual as predictors 
-anova(lm(OPG~Genome_copies_mean+dpi+EH_ID,  data = sdt))
+
+summary(glm(OPG~Genome_copies_mean*dpi,  data = sdt, na.action = na.exclude)) ## Using just genome copies as predictor
+anova(glm(OPG~Genome_copies_mean*dpi,  data = sdt, na.action = na.exclude))
 
 ## Create Time-Series
 require("reshape")
 sdt%>%
-  dplyr::select(EH_ID, dpi, Genome_copies_mean, labels)%>%
+  dplyr::select(EH_ID, dpi, Genome_copies_mean)%>%
   dplyr::arrange(EH_ID)%>%
-  dplyr::arrange(dpi)-> dna
-dna<- na.omit(dna)  
-plot(dna$Genome_copies_mean)
+  dplyr::arrange(dpi)%>%
+  na.exclude()-> dna
+dna<- reshape(dna, idvar = "EH_ID", timevar = "dpi", direction = "wide")
 
 sdt%>%
-  dplyr::select(EH_ID, dpi, OPG, labels)%>%
+  dplyr::select(EH_ID, dpi, OPG)%>%
   dplyr::arrange(EH_ID)%>%
-  dplyr::arrange(dpi)-> oocysts
-oocysts<- na.omit(oocysts)  
-plot(oocysts$OPG)
+  dplyr::arrange(dpi)%>%
+  na.exclude()-> oocysts
+oocysts<- reshape(oocysts, idvar = "EH_ID", timevar = "dpi", direction = "wide")
 
-sdt.2<-join(oocysts, dna, by= "labels")
-sdt.2%>%
-  dplyr::select(1,2,3,4,7)->sdt.2
+ts.data<- join(oocysts, dna, by= "EH_ID")
 
-sdt.2<-na.omit(sdt.2)
-compare_means(formula = Genome_copies_mean~dpi, method = "wilcox.test", ref.group = "3", data = sdt.2)
+ts.data%>%
+  dplyr::rowwise()%>%
+  dplyr::mutate(Sum_Oocysts= sum(c(OPG.0,OPG.3,OPG.4,OPG.5,OPG.6,OPG.7,OPG.8,OPG.9,OPG.10)))-> ts.data
 
-sdt.2%>%
-  filter(dpi%in%c("0","1","2","3","4", "5","6", "7", "8", "9", "10"))%>%
-  dplyr::select(EH_ID, dpi,OPG, Genome_copies_mean)%>%
-  dplyr::arrange(EH_ID)%>%
-  dplyr::arrange(dpi)%>% ##for comparison 
-  ggplot(aes(x= dpi, y= Genome_copies_mean))+
-  scale_y_log10("log10 Genome copies/µL gDNA (qPCR)", 
-                breaks = scales::trans_breaks("log10", function(x) 10^x),
-                labels = scales::trans_format("log10", scales::math_format(10^.x)))+
-  geom_boxplot(aes(color= dpi))+
-  geom_point(aes(color=dpi))+
-  xlab("Day post infection")+
-  geom_line(aes(group = EH_ID), color= "gray")+
-  scale_color_npg()+
-  labs(tag= "A)")+
-  theme_bw()+
-  theme(text = element_text(size=16))+
-  annotation_logticks(sides = "l")+
-  stat_compare_means(label= "p.signif", method = "wilcox.test", ref.group = "0", na.rm = TRUE)+
-  stat_compare_means()
+### Models
+##Check distribution of data 
+require("fitdistrplus")
+require("logspline")
 
+x <- ts.data$Sum_Oocysts
+x <- ts.data$OPG.6
+x <- round(na.omit(ts.data$Genome_copies_mean.0))
+x <- ts.data$Genome_copies_mean.1
+x <- ts.data$Genome_copies_mean.2
+x <- ts.data$Genome_copies_mean.3
+x <- ts.data$Genome_copies_mean.4
+x <- ts.data$Genome_copies_mean.5
+x <- ts.data$Genome_copies_mean.6
+x <- ts.data$Genome_copies_mean.7
+x <- ts.data$Genome_copies_mean.8
+x <- ts.data$Genome_copies_mean.9
+x <- ts.data$Genome_copies_mean.10
+
+plotdist(x, histo = TRUE, demp = TRUE)
+descdist(x, boot = 1000)
+fit.norm <- fitdist(x, "norm")
+#fit.nbinom <- fitdist(x, "nbinom")
+plot(fit.norm)
+#plot(fit.nbinom)
+## Genome copies have a negative binomial distribution use glm.nb
+##Total OPGs during infection are predicted by DNA at different dpi? Genome copies per dpi as individual predictors
+sum.opg <- glm.nb(formula = Sum_Oocysts~ Genome_copies_mean.0+
+      Genome_copies_mean.1+
+      Genome_copies_mean.2+
+      Genome_copies_mean.3+
+      Genome_copies_mean.4+
+      Genome_copies_mean.5+
+      Genome_copies_mean.6+
+      Genome_copies_mean.7+
+      Genome_copies_mean.8+
+      Genome_copies_mean.9+
+      Genome_copies_mean.10, data = ts.data, na.action = na.exclude)
+
+summary(sum.opg)
+plot(sum.opg)
+
+library(sjPlot)
+library(sjmisc)
+library(sjlabelled)
+tab_model(sum.opg)
+
+##extract p values for bonferroni correction
+p.sum.opg<- as.data.frame(coef(summary(sum.opg))[,'Pr(>|z|)'])
+colnames(p.sum.opg)<- "P_unadjusted"
+p.sum.opg$P_adjusted<-p.adjust(p.sum.opg$`P_unadjusted`, method = "bonferroni")
+
+##OPG at pick of infection are predicted by DNA at different dpi? Genome copies per dpi as individual predictors 
+dpi6.opg <- glm.nb(formula = OPG.6~ Genome_copies_mean.0+
+                 Genome_copies_mean.1+
+                 Genome_copies_mean.2+
+                 Genome_copies_mean.3+
+                 Genome_copies_mean.4+
+                 Genome_copies_mean.5+
+                 Genome_copies_mean.6+
+                 Genome_copies_mean.7+
+                 Genome_copies_mean.8+
+                 Genome_copies_mean.9+
+                 Genome_copies_mean.10, data = ts.data, na.action = na.exclude)
+
+summary(dpi6.opg)
+plot(dpi6.opg)
+tab_model(dpi6.opg)
 ##Using local regression models (non-parametric approach that fits multiple regressions in local neighborhood)
 summary(loess(OPG~Genome_copies_mean,  data = sdt, span = 0.1)) ## Using just genome copies as predictor
 predict(loess(OPG~Genome_copies_mean,  data = sdt, span = 0.1))

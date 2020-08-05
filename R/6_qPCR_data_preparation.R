@@ -67,7 +67,7 @@ rm(fac.vars, num.vars)
 set.seed(2020)
 ##Final standard curve for Intersample variation and mock samples experiment
 data.std%>%
-  select(Sample.Name,Task,Std_series,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm,Date)%>%
+  dplyr::select(Sample.Name,Task,Std_series,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm,Date)%>%
   filter(Task=="Standard" & Cycler=="ABI" & Std_series%in%c("A","B"))%>%
   dplyr::group_by(Parasite)%>%
   ggplot(aes(Qty*8, Ct))+
