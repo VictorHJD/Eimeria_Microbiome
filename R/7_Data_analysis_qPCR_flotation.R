@@ -458,6 +458,7 @@ require("fitdistrplus")
 require("logspline")
 
 x <- ts.data$Sum_Oocysts
+x <- ts.data$Max_Oocysts
 x <- ts.data$OPG.6
 x <- ts.data$Genome_copies_mean.0
 x <- ts.data$Genome_copies_mean.1
@@ -477,7 +478,6 @@ fit.norm <- fitdist(x, "norm")
 #fit.nbinom <- fitdist(x, "nbinom")
 plot(fit.norm)
 #plot(fit.nbinom)
-## Genome copies have a negative binomial distribution use glm.nb
 ##Total OPGs during infection are predicted by DNA at different dpi? Genome copies per dpi as individual predictors
 
 sum.opg <- glm.nb(formula = Sum_Oocysts~ Genome_copies_mean.0+
@@ -496,10 +496,6 @@ summary(sum.opg)
 plot(sum.opg)
 
 drop1(sum.opg, test= "LRT")
-sum.opg2<- glm.nb(formula = Sum_Oocysts ~ Genome_copies_mean.2 + Genome_copies_mean.4 +Genome_copies_mean.10, 
-       data = ts.data, na.action = na.exclude)
-summary(sum.opg2)
-plot(sum.opg2)
 
 library(sjPlot)
 library(sjmisc)
@@ -618,10 +614,7 @@ ts.data%>%
   annotation_logticks()+
   coord_cartesian(ylim = c(10000, 10000000))-> ts6
 
-##Using local regression models (non-parametric approach that fits multiple regressions in local neighborhood)
-summary(loess(OPG~Genome_copies_mean,  data = sdt, span = 0.1)) ## Using just genome copies as predictor
-predict(loess(OPG~Genome_copies_mean,  data = sdt, span = 0.1))
-
+####Weight loss
 ## DNA as a predictor of weightloss
 sdt%>%
   ggplot(aes(Genome_copies_mean, (weight/weight_dpi0)*100))+
