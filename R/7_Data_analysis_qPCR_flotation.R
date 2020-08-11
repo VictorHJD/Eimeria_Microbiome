@@ -132,7 +132,7 @@ sdt%>%
 
 ### Predictions Early DNA vs Late Oocysts
 sdt%>%
-  filter(dpi%in%c("0","1","2","3","4", "6", "7", "8", "9", "10"))%>%
+  filter(dpi%in%c("0","1","2","3","4", "5","6", "7", "8", "9", "10"))%>%
   dplyr::select(EH_ID, dpi,OPG, Genome_copies_mean)%>%
   dplyr::arrange(EH_ID)%>%
   dplyr::arrange(dpi)%>% ##for comparison 
@@ -145,14 +145,16 @@ sdt%>%
   xlab("Day post infection")+
   geom_line(aes(group = EH_ID), color= "gray")+
   scale_color_npg()+
+  scale_color_brewer(palette = "Set3")+
   labs(tag= "A)")+
   theme_bw()+
   theme(text = element_text(size=16))+
   annotation_logticks(sides = "l")+
-  #stat_compare_means(label= "p.signif", method = "wilcox.test", ref.group = "3", paired = TRUE, na.rm = TRUE)+
+  #stat_compare_means(label= "p.signif", method = "wilcox.test", ref.group = "0", paired = TRUE, na.rm = TRUE)+
   stat_compare_means(method =  "anova")-> dna3_10
 
-  compare_means(formula = Genome_copies_mean~dpi, method = "wilcox.test", ref.group = "3",paired = TRUE, data = sdt)
+  sup2<-as.data.frame(compare_means(formula = Genome_copies_mean~dpi, ref.group = "0", method = "wilcox.test",paired = TRUE, data = sdt))
+  #write.csv(sup2, "/SAN/Victors_playground/Eimeria_microbiome/Supplementary_table_1.csv", row.names = FALSE)
 
   sdt%>%
     filter(dpi%in%c("0","1","2","3","4", "5","6", "7", "8", "9", "10"))%>%
