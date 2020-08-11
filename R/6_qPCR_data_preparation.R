@@ -269,13 +269,13 @@ if(Mock){
   
   ##Standard curve and ceramic beads data
   data.std%>%
-    select(Sample.Name,Task,Std_series,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm,Sample_type,Feces_weight,Extraction,Date)%>%
+    dplyr::select(Sample.Name,Task,Std_series,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm,Sample_type,Feces_weight,Extraction,Date)%>%
     filter(Task%in%c("Standard", "NTC") & Cycler=="ABI" & Std_series%in%c("A","B"))%>%
     dplyr::mutate(Qty= Qty*8)%>% ##Transform to Genome copies per uL gDNA qPCR 
     dplyr::group_by(Parasite)-> Std.mock
   
   data.unk%>%
-    select(Sample.Name,Task,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm,Sample_type,Feces_weight,Extraction,Date, NanoDrop)%>%
+    dplyr::select(Sample.Name,Task,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm,Sample_type,Feces_weight,Extraction,Date, NanoDrop)%>%
     filter(Sample_type=="Feces" & Task=="Unknown" & Extraction!="Glass_beads")%>%
     dplyr::mutate(Qty= 10^((Ct-36)/-3.1), ## Transform Ct to Genome copies per uL gDNA qPCR
                   #GC_ngDNA= Genome_copies/NanoDrop, ## Estimate Genome copies by ng of fecal DNA
@@ -291,7 +291,7 @@ if(Mock){
   ##
   set.seed(2020)
   data.mock%>%
-    select(Sample.Name,Task,Qty,Ct,Oocyst_count)%>%  
+    dplyr::select(Sample.Name,Task,Qty,Ct,Oocyst_count)%>%  
     filter(Task%in%c("Standard", "Unknown"))%>%
     ggplot(aes(x = Oocyst_count, y = Qty), geom=c("point", "smooth")) +
     scale_x_log10(name = "log10 Eimeria Oocyst count (Flotation)", 
@@ -317,6 +317,19 @@ if(Mock){
           # Change legend key size and key width
           legend.key.size = unit(0.25, "cm"),
           legend.key.width = unit(0.15,"cm"))-> E
+
+  summary(lm(formula = log10(Oocyst_count)~log10(Qty), data = subset(data.mock, Task== "Standard")))
+  modelstd<- lm(formula = log10(Oocyst_count)~log10(Qty), data = subset(data.mock, Task== "Standard"))
+  summary(lm(formula = log10(Oocyst_count)~log10(Qty), data = subset(data.mock, Task== "Unknown" & Oocyst_count >0)))
+  modelmock<- lm(formula = log10(Oocyst_count)~log10(Qty), data = subset(data.mock, Task== "Unknown" & Oocyst_count >0))
+  
+  data.mock%>%
+    dplyr::select(Sample.Name, Qty, Oocyst_count, Task)%>%
+    filter(Task== "Unknown"& Oocyst_count >0)%>%
+    dplyr::mutate(Qty_estimated= 10^(0.9+log10(Oocyst_count)), Percent_error= ((Qty_estimated- Qty)/Qty_estimated)*100)->Error_mock
+  
+  mean_ci(Error_mock$Percent_error)
+  mean_sd(Error_mock$Percent_error)
   
   data.mock%>%
     select(Sample.Name,Task,Qty,Ct,Oocyst_count, GC_gfeces, OPG)%>%  
