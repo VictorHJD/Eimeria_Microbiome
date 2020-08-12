@@ -89,10 +89,34 @@ data.std%>%
 
 summary(lm(formula = log10(Qty*8)~Ct, data = subset(data.std, Cycler=="ABI" & Task== "Standard" & Std_series%in%c("A","B"))))
 
-##Final standard curve for Inf. experiment samples 
-## Eimeria Oocysts
+##Oocysts
 data.std%>%
-  select(Sample.Name,Task,Std_series,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm)%>%
+  dplyr::select(Sample.Name,Task,Std_series,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm,Date)%>%
+  filter(Task=="Standard" & Cycler=="ABI" & Std_series%in%c("A","B"))%>%
+  dplyr::group_by(Parasite)%>%
+  ggplot(aes(Qty, Ct))+
+  scale_x_log10("log 10 Eimeria Oocysts", 
+                breaks = scales::trans_breaks("log10", function(x) 10^x),
+                labels = scales::trans_format("log10", scales::math_format(10^.x)))+
+  geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 25, fill= Cycler), color= "black", alpha= 0.5)+
+  geom_smooth(color= "black", method = "lm")+            
+  stat_cor(label.x = 5,  label.y = 34,method = "spearman")+
+  stat_cor(label.x = 5, label.y = 32,aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~")))+        # Add correlation coefficient
+  stat_regline_equation(label.x = 5, label.y = 36)+
+  stat_summary(fun.data=mean_cl_boot, geom="pointrange", shape=16, size=0.5, color="black")+
+  labs(tag = "A)")+
+  theme_bw() +
+  #facet_grid(cols = vars(Std_series))+
+  theme(text = element_text(size=20), legend.position = "none")+
+  annotation_logticks(sides = "b")+
+  coord_cartesian(ylim = c(10, 40)) -> A
+
+std_abi<- lm(formula = log10(Qty)~Ct, data = subset(data.std, Cycler=="ABI" & Task== "Standard" & Std_series%in%c("A","B")))
+summary(std_abi)
+
+##Final standard curve for Inf. experiment samples 
+data.std%>%
+  dplyr::select(Sample.Name,Task,Std_series,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm)%>%
   filter(Task=="Standard" & Parasite=="E_falciformis" & Cycler=="BioRad")%>%
   dplyr::group_by(Sample.Name)%>%
   #filter(Sample.Name!="Eimeria_10_0")%>%
@@ -112,14 +136,13 @@ data.std%>%
   annotation_logticks(sides = "b")+
   coord_cartesian(ylim = c(10, 40))-> B
 
-## Considering both cyclers to generate a single std curve
+##Oocysts
 data.std%>%
-  select(Sample.Name,Task,Std_series,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm, Genome_copies)%>%
-  filter(Task=="Standard" & Parasite=="E_falciformis" & Cycler%in%c("BioRad", "ABI"))%>%
+  dplyr::select(Sample.Name,Task,Std_series,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm)%>%
+  filter(Task=="Standard" & Parasite=="E_falciformis" & Cycler=="BioRad")%>%
   dplyr::group_by(Sample.Name)%>%
-  #filter(Sample.Name!="Eimeria_10_0")%>%
-  ggplot(aes(Qty*8, Ct))+
-  scale_x_log10("log 10 Eimeria genome copies/µL gDNA", 
+  ggplot(aes(Qty, Ct))+
+  scale_x_log10("log 10 Eimeria Oocysts", 
                 breaks = scales::trans_breaks("log10", function(x) 10^x),
                 labels = scales::trans_format("log10", scales::math_format(10^.x)))+
   geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 25, fill= Cycler), color= "black", alpha= 0.5)+
@@ -128,11 +151,14 @@ data.std%>%
   stat_cor(label.x = 5, label.y = 32, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~")))+        # Add correlation coefficient
   stat_regline_equation(label.x = 5, label.y = 36)+
   stat_summary(fun.data=mean_cl_boot, geom="pointrange", shape=16, size=0.5, color="black")+
-  labs(tag = "C)")+
+  labs(tag = "B)")+
   theme_bw() +
   theme(text = element_text(size=20), legend.position = "none")+
   annotation_logticks(sides = "b")+
-  coord_cartesian(ylim = c(10, 40))-> C
+  coord_cartesian(ylim = c(10, 40))-> B
+
+std_br<- lm(formula = log10(Qty)~Ct, data = subset(data.std, Task=="Standard" & Parasite=="E_falciformis" & Cycler=="BioRad"))
+summary(std_br)
 
 ### Figure 1 Final Standard curves 
 pdf(file = "~/AA_Microbiome/Figures/Oocysts_qPCR_Manuscript/Figure_1.pdf", width = 8, height = 10)
@@ -185,8 +211,12 @@ summary(lm(formula = log10(Oocyst_count)~Ct, data = subset(data.std, Cycler=="Bi
 
 ###### Intersample variation experiment #####
 if(Unknowns){
+  ##Predict using the result from the lm 
+  data.unk$model_Qty<- predict(std_abi, data.unk)
+  data.unk$model_Qty<-10^(data.unk$model_Qty)
+    
 data.unk%>%
-  select(Sample.Name, Task, Ct,Qty,Cycler,Parasite, Sample_type, Tm, Oocyst_1, Oocyst_2, Oocyst_3, Oocyst_4, Oocyst_5,Oocyst_6, Oocyst_7, Oocyst_8, Dilution_factor, Volume)%>%
+  dplyr::select(Sample.Name, Task, Ct,Qty,Cycler,Parasite, Sample_type, Tm, Oocyst_1, Oocyst_2, Oocyst_3, Oocyst_4, Oocyst_5,Oocyst_6, Oocyst_7, Oocyst_8, Dilution_factor, Volume, model_Qty)%>%
   dplyr::mutate(Qty= 10^((Ct-36)/-3.1))%>% ## Considering ABI std curve (Fig.1A)
   filter(Sample_type=="Oocysts" & Task=="Unknown" & Cycler== "ABI")%>%
   dplyr::group_by(Sample.Name)%>%

@@ -459,9 +459,9 @@ ts.data%>%
 require("fitdistrplus")
 require("logspline")
 
-x <- ts.data$Sum_Oocysts
-x <- ts.data$Max_Oocysts
-x <- ts.data$OPG.6
+x <- round(ts.data$Sum_Oocysts)
+x <- round(ts.data$Max_Oocysts)
+x <- round(ts.data$OPG.6)
 x <- ts.data$Genome_copies_mean.0
 x <- ts.data$Genome_copies_mean.1
 x <- ts.data$Genome_copies_mean.2
@@ -476,10 +476,20 @@ x <- ts.data$Genome_copies_mean.10
 
 plotdist(x, histo = TRUE, demp = TRUE)
 descdist(x, boot = 1000)
-fit.norm <- fitdist(x, "norm")
-#fit.nbinom <- fitdist(x, "nbinom")
-plot(fit.norm)
-#plot(fit.nbinom)
+fn <- fitdist(x, "norm")
+fln<- fitdist(x, "lnorm")
+fw <- fitdist(x, "weibull")
+fnb<- fitdist(x, "nbinom")
+plot(fn)
+plot(fln)
+plot(fw)
+plot(fnb)
+par(mfrow = c(2, 2))
+plot.legend <- c("NegBinom", "Lognormal", "Weibull", "Normal")
+denscomp(list(fnb, fln, fw, fn), legendtext = plot.legend)
+qqcomp(list(fnb, fln, fw, fn), legendtext = plot.legend)
+cdfcomp(list(fnb, fln, fw, fn), legendtext = plot.legend)
+ppcomp(list(fnb, fln, fw, fn), legendtext = plot.legend)
 ##Total OPGs during infection are predicted by DNA at different dpi? Genome copies per dpi as individual predictors
 
 sum.opg <- glm.nb(formula = Sum_Oocysts~ Genome_copies_mean.0+
