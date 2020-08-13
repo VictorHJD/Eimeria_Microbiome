@@ -349,10 +349,10 @@ if(Mock){
           legend.key.size = unit(0.25, "cm"),
           legend.key.width = unit(0.15,"cm"))-> E
 
-  summary(lm(formula = log10(Oocyst_count)~log10(Qty), data = subset(data.mock, Task== "Standard")))
-  modelstd<- lm(formula = log10(Oocyst_count)~log10(Qty), data = subset(data.mock, Task== "Standard"))
-  summary(lm(formula = log10(Oocyst_count)~log10(Qty), data = subset(data.mock, Task== "Unknown" & Oocyst_count >0)))
-  modelmock<- lm(formula = log10(Oocyst_count)~log10(Qty), data = subset(data.mock, Task== "Unknown" & Oocyst_count >0))
+  summary(lm(formula = log10(Qty)~log10(Oocyst_count), data = subset(data.mock, Task== "Standard")))
+  modelstd<- lm(formula = log10(Qty)~log10(Oocyst_count), data = subset(data.mock, Task== "Standard"))
+  summary(lm(formula = log10(Qty)~log10(Oocyst_count), data = subset(data.mock, Task== "Unknown" & Oocyst_count >0)))
+  modelmock<- lm(formula = log10(Qty)~log10(Oocyst_count), data = subset(data.mock, Task== "Unknown" & Oocyst_count >0))
   
   data.mock%>%
     dplyr::select(Sample.Name, Qty, Oocyst_count, Task)%>%
