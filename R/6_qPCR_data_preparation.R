@@ -38,7 +38,7 @@ if(Unknowns){
   
   ##Define numeric and factor variables 
   num.vars <- c("Ct", "Ct_mean", "Sd_Ct", "Qty", "Qty_mean", "Sd_Qty", "Oocyst_count", "Feces_weight", "Qubit", "NanoDrop", "Beads_weight", "Tm", 
-                "Oocyst_1", "Oocyst_2", "Oocyst_3", "Oocyst_4", "Oocyst_5", "Oocyst_6", "Oocyst_7", "Oocyst_8", "Dilution_factor", "Volume")
+                "Oocyst_1", "Oocyst_2", "Oocyst_3", "Oocyst_4", "Oocyst_5", "Oocyst_6", "Oocyst_7", "Oocyst_8", "Dilution_factor", "Volume", "Sporulated")
   fac.vars <- c("Well", "Sample.Name", "Detector", "Task", "Date", "Operator", "Cycler", "Parasite", "Sample_type", "Extraction")  
   data.unk[, num.vars] <- apply(data.unk[, num.vars], 2, as.numeric)
   data.unk[, fac.vars] <- apply(data.unk[, fac.vars], 2, as.factor)
@@ -216,13 +216,15 @@ if(Unknowns){
   data.unk$model_Qty<-10^(data.unk$model_Qty)
     
 data.unk%>%
-  dplyr::select(Sample.Name, Task, Ct,Qty,Cycler,Parasite, Sample_type, Tm, Oocyst_1, Oocyst_2, Oocyst_3, Oocyst_4, Oocyst_5,Oocyst_6, Oocyst_7, Oocyst_8, Dilution_factor, Volume, model_Qty)%>%
+  dplyr::select(Sample.Name, Task, Ct,Qty,Cycler,Parasite, Sample_type, Extraction, Tm, Oocyst_1, Oocyst_2, Oocyst_3, Oocyst_4, Oocyst_5,Oocyst_6, Oocyst_7, Oocyst_8, Sporulated, Dilution_factor, Volume, model_Qty)%>%
   dplyr::mutate(Qty= 10^((Ct-36)/-3.1))%>% ## Considering ABI std curve (Fig.1A)
-  filter(Sample_type=="Oocysts" & Task=="Unknown" & Cycler== "ABI")%>%
+  filter(Sample_type=="Oocysts" & Task=="Unknown" & Cycler== "ABI", Extraction== "Ceramic_beads")%>%
   dplyr::group_by(Sample.Name)%>%
   dplyr::mutate(N= n())%>%
   dplyr::mutate(Total_oocysts= (sum(Oocyst_1, Oocyst_2, Oocyst_3, Oocyst_4, Oocyst_5,Oocyst_6, Oocyst_7, Oocyst_8))/N)%>%
   dplyr::mutate(Oocyst_count= (((Total_oocysts*10000)/8)*Dilution_factor))%>% ##Concentration of Oocyst in the solution
+  dplyr::mutate(Sporulated_count= (((Sporulated*10000)/8)*Dilution_factor))%>% ##Concentration of sporulated oocyst in the solution
+  dplyr::mutate(Sporulation_rate= (Sporulated_count/Oocyst_count)*100)%>% ##Sporulation rate
   ggplot(aes(Oocyst_count,Qty), geom=c("point", "smooth"))+
   scale_x_log10(name = "log10 Eimeria Oocysts count (Flotation)", 
                 breaks = scales::trans_breaks("log10", function(x) 10^x),
