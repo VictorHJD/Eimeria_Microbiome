@@ -67,10 +67,10 @@ rm(fac.vars, num.vars)
 set.seed(2020)
 ##Final standard curve for Intersample variation and mock samples experiment
 data.std%>%
-  dplyr::select(Sample.Name,Task,Std_series,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm,Date)%>%
+  dplyr::select(Sample.Name,Task,Std_series,Ct,Cycler,Oocyst_count,Parasite,Tm,Date)%>%
   filter(Task=="Standard" & Cycler=="ABI" & Std_series%in%c("A","B"))%>%
   dplyr::group_by(Parasite)%>%
-  ggplot(aes(Qty*8, Ct))+
+  ggplot(aes(Oocyst_count*8, Ct))+
   scale_x_log10("log 10 Eimeria genome copies/µL gDNA", 
                 breaks = scales::trans_breaks("log10", function(x) 10^x),
                 labels = scales::trans_format("log10", scales::math_format(10^.x)))+
@@ -87,14 +87,14 @@ data.std%>%
   annotation_logticks(sides = "b")+
   coord_cartesian(ylim = c(10, 40)) -> A
 
-summary(lm(formula = log10(Qty*8)~Ct, data = subset(data.std, Cycler=="ABI" & Task== "Standard" & Std_series%in%c("A","B"))))
+summary(lm(formula = log10(Oocyst_count*8)~Ct, data = subset(data.std, Cycler=="ABI" & Task== "Standard" & Std_series%in%c("A","B"))))
 
 ##Oocysts
 data.std%>%
-  dplyr::select(Sample.Name,Task,Std_series,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm,Date)%>%
+  dplyr::select(Sample.Name,Task,Std_series,Ct,Cycler,Oocyst_count,Parasite,Tm,Date)%>%
   filter(Task=="Standard" & Cycler=="ABI" & Std_series%in%c("A","B"))%>%
   dplyr::group_by(Parasite)%>%
-  ggplot(aes(Qty, Ct))+
+  ggplot(aes(Oocyst_count, Ct))+
   scale_x_log10("log 10 Eimeria Oocysts", 
                 breaks = scales::trans_breaks("log10", function(x) 10^x),
                 labels = scales::trans_format("log10", scales::math_format(10^.x)))+
@@ -111,16 +111,15 @@ data.std%>%
   annotation_logticks(sides = "b")+
   coord_cartesian(ylim = c(10, 40)) -> A
 
-std_abi<- lm(formula = log10(Qty)~Ct, data = subset(data.std, Cycler=="ABI" & Task== "Standard" & Std_series%in%c("A","B")))
+std_abi<- lm(formula = log10(Oocyst_count)~Ct, data = subset(data.std, Cycler=="ABI" & Task== "Standard" & Std_series%in%c("A","B")))
 summary(std_abi)
 
 ##Final standard curve for Inf. experiment samples 
 data.std%>%
-  dplyr::select(Sample.Name,Task,Std_series,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm)%>%
+  dplyr::select(Sample.Name,Task,Std_series,Ct,Cycler,Oocyst_count,Parasite,Tm)%>%
   filter(Task=="Standard" & Parasite=="E_falciformis" & Cycler=="BioRad")%>%
   dplyr::group_by(Sample.Name)%>%
-  #filter(Sample.Name!="Eimeria_10_0")%>%
-  ggplot(aes(Qty*8, Ct))+
+  ggplot(aes(Oocyst_count*8, Ct))+
   scale_x_log10("log 10 Eimeria genome copies/µL gDNA", 
                 breaks = scales::trans_breaks("log10", function(x) 10^x),
                 labels = scales::trans_format("log10", scales::math_format(10^.x)))+
@@ -138,10 +137,10 @@ data.std%>%
 
 ##Oocysts
 data.std%>%
-  dplyr::select(Sample.Name,Task,Std_series,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm)%>%
+  dplyr::select(Sample.Name,Task,Std_series,Ct,Cycler,Oocyst_count,Parasite,Tm)%>%
   filter(Task=="Standard" & Parasite=="E_falciformis" & Cycler=="BioRad")%>%
   dplyr::group_by(Sample.Name)%>%
-  ggplot(aes(Qty, Ct))+
+  ggplot(aes(Oocyst_count, Ct))+
   scale_x_log10("log 10 Eimeria Oocysts", 
                 breaks = scales::trans_breaks("log10", function(x) 10^x),
                 labels = scales::trans_format("log10", scales::math_format(10^.x)))+
@@ -157,7 +156,7 @@ data.std%>%
   annotation_logticks(sides = "b")+
   coord_cartesian(ylim = c(10, 40))-> B
 
-std_br<- lm(formula = log10(Qty)~Ct, data = subset(data.std, Task=="Standard" & Parasite=="E_falciformis" & Cycler=="BioRad"))
+std_br<- lm(formula = log10(Oocyst_count)~Ct, data = subset(data.std, Task=="Standard" & Parasite=="E_falciformis" & Cycler=="BioRad"))
 summary(std_br)
 
 ### Figure 1 Final Standard curves 
