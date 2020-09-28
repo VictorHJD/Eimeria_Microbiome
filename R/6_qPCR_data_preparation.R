@@ -89,6 +89,42 @@ data.std%>%
 
 summary(lm(formula = log10(Oocyst_count*8)~Ct, data = subset(data.std, Cycler=="ABI" & Task== "Standard" & Std_series%in%c("A","B"))))
 
+# comput simple linear models from standards
+# "Ct as modeled by Genome copies"
+data.std.lm<- subset(data.std, Task== "Standard")
+data.std.lm %>% 
+  select(Sample.Name, Task, Ct, Cycler, Oocyst_count, Parasite, Genome_copies)-> data.std.lm
+
+lm.GC <- lm(log10(Genome_copies)~ Ct, data.std.lm)
+summary(lm.GC)
+data.std.lm$predicted<- 10^predict(lm.GC)
+data.std.lm$residuals<- 10^residuals(lm.GC)
+# check 
+data.std.lm %>% 
+  select(Genome_copies, predicted, residuals) %>%
+  head()
+
+##Plot
+ggplot(data.std.lm, aes(x = Oocyst_count, y = predicted, color= Cycler)) +
+  geom_smooth(method = "lm", se = FALSE) +
+  guides(color = FALSE, size = FALSE) +  # Size legend also removed
+  #geom_point(aes(y = predicted), shape = 21) +
+  scale_x_log10("log 10 Oocysts count", 
+                breaks = scales::trans_breaks("log10", function(x) 10^x),
+                labels = scales::trans_format("log10", scales::math_format(10^.x)))+
+  scale_y_log10("log 10 Eimeria genome copies/µL gDNA", 
+                breaks = scales::trans_breaks("log10", function(x) 10^x),
+                labels = scales::trans_format("log10", scales::math_format(10^.x)))+
+  geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 25, fill= Cycler), color= "black", alpha= 0.5)+
+  stat_cor(label.x = 4,  label.y = 3,method = "spearman")+
+  stat_cor(label.x = 4, label.y = 2,aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~")))+# Add correlation coefficient
+  stat_regline_equation(label.x = 4, label.y = 1)+
+  #stat_summary(fun.data=mean_cl_boot, geom="pointrange", shape=16, size=0.5, color="black")+
+  labs(tag = "A)")+
+  theme_bw() +
+  theme(text = element_text(size=20))+
+  annotation_logticks(sides = "b")
+
 ##Oocysts
 data.std%>%
   dplyr::select(Sample.Name,Task,Std_series,Ct,Cycler,Oocyst_count,Parasite,Tm,Date)%>%
@@ -211,7 +247,7 @@ summary(lm(formula = log10(Oocyst_count)~Ct, data = subset(data.std, Cycler=="Bi
 ###### Intersample variation experiment #####
 if(Unknowns){
   ##Predict using the result from the lm 
-  data.unk$model_Qty<- predict(std_abi, data.unk)
+  data.unk$model_Qty<- predict(lm.GC, data.unk)
   data.unk$model_Qty<-10^(data.unk$model_Qty)
     
 data.unk%>%
