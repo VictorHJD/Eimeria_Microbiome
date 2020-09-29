@@ -104,7 +104,25 @@ data.std.lm %>%
   select(Genome_copies, predicted, residuals) %>%
   head()
 
-##Plot
+##Plot Std curve Cycler
+ggplot(data.std.lm, aes(x = Genome_copies, y = Ct, color= Cycler)) +
+  geom_smooth(method = "lm", se = T) +
+  guides(color = FALSE, size = FALSE) +  # Size legend also removed
+  #geom_point(aes(y = predicted), shape = 21) +
+  scale_x_log10("log 10 Oocysts count", 
+                breaks = scales::trans_breaks("log10", function(x) 10^x),
+                labels = scales::trans_format("log10", scales::math_format(10^.x)))+
+  geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 20, fill= Cycler), color= "black", alpha= 0.5)+
+  #stat_cor(label.x = 4,  label.y = 3,method = "spearman")+
+  stat_cor(label.x = 5, label.y = c(35,30,25),aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~")))+# Add correlation coefficient
+  stat_regline_equation(label.x = 6, label.y = c(37.5,32.5,27.5))+
+  #stat_summary(fun.data=mean_cl_boot, geom="pointrange", shape=16, size=0.5, color="black")+
+  labs(tag = "A)")+
+  theme_bw() +
+  theme(text = element_text(size=20))+
+  annotation_logticks(sides = "b")
+
+
 ggplot(data.std.lm, aes(x = Oocyst_count, y = predicted, color= Cycler)) +
   geom_smooth(method = "lm", se = FALSE) +
   guides(color = FALSE, size = FALSE) +  # Size legend also removed
@@ -116,9 +134,9 @@ ggplot(data.std.lm, aes(x = Oocyst_count, y = predicted, color= Cycler)) +
                 breaks = scales::trans_breaks("log10", function(x) 10^x),
                 labels = scales::trans_format("log10", scales::math_format(10^.x)))+
   geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 25, fill= Cycler), color= "black", alpha= 0.5)+
-  stat_cor(label.x = 4,  label.y = 3,method = "spearman")+
-  stat_cor(label.x = 4, label.y = 2,aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~")))+# Add correlation coefficient
-  stat_regline_equation(label.x = 4, label.y = 1)+
+  #stat_cor(label.x = 4,  label.y = 3,method = "spearman")+
+  stat_cor(label.x = 4, label.y = c(3.5,3,2.5),aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~")))+# Add correlation coefficient
+  stat_regline_equation(label.x = 4, label.y = c(2,1.5,1))+
   #stat_summary(fun.data=mean_cl_boot, geom="pointrange", shape=16, size=0.5, color="black")+
   labs(tag = "A)")+
   theme_bw() +
