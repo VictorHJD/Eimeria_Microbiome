@@ -105,7 +105,7 @@ data.std.lm %>%
   head()
 
 ##Plot Std curve Cycler
-ggplot(data.std.lm, aes(x = Genome_copies, y = Ct, color= Cycler)) +
+ggplot(data.std.lm, aes(x = Genome_copies, y = Ct, color= Cycler,shape= Parasite)) +
   geom_smooth(method = "lm", se = T) +
   guides(color = FALSE, size = FALSE) +  # Size legend also removed
   #geom_point(aes(y = predicted), shape = 21) +
@@ -115,13 +115,29 @@ ggplot(data.std.lm, aes(x = Genome_copies, y = Ct, color= Cycler)) +
   geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 20, fill= Cycler), color= "black", alpha= 0.5)+
   #stat_cor(label.x = 4,  label.y = 3,method = "spearman")+
   stat_cor(label.x = 5, label.y = c(35,30,25),aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~")))+# Add correlation coefficient
-  stat_regline_equation(label.x = 6, label.y = c(37.5,32.5,27.5))+
+  stat_regline_equation(label.x = 5, label.y = c(36.5,31.5,26.5))+
   #stat_summary(fun.data=mean_cl_boot, geom="pointrange", shape=16, size=0.5, color="black")+
   labs(tag = "A)")+
   theme_bw() +
   theme(text = element_text(size=20))+
-  annotation_logticks(sides = "b")
+  annotation_logticks(sides = "b")-> A1
 
+ggplot(data.std.lm, aes(x = Genome_copies, y = Ct, color= Parasite)) +
+  geom_smooth(method = "lm", se = T) +
+  guides(color = FALSE, size = FALSE) +  # Size legend also removed
+  #geom_point(aes(y = predicted), shape = 21) +
+  scale_x_log10("log 10 Oocysts count", 
+                breaks = scales::trans_breaks("log10", function(x) 10^x),
+                labels = scales::trans_format("log10", scales::math_format(10^.x)))+
+  geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 20, fill= Parasite), color= "black", alpha= 0.5)+
+  #stat_cor(label.x = 4,  label.y = 3,method = "spearman")+
+  stat_cor(label.x = 5, label.y = c(35,30,25),aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~")))+# Add correlation coefficient
+  stat_regline_equation(label.x = 5, label.y = c(36.5,31.5,26.5))+
+  #stat_summary(fun.data=mean_cl_boot, geom="pointrange", shape=16, size=0.5, color="black")+
+  labs(tag = "B)")+
+  theme_bw() +
+  theme(text = element_text(size=20))+
+  annotation_logticks(sides = "b")-> B1
 
 ggplot(data.std.lm, aes(x = Oocyst_count, y = predicted, color= Cycler)) +
   geom_smooth(method = "lm", se = FALSE) +
@@ -223,6 +239,13 @@ grid.arrange(A, B, C)
 dev.off()
 rm(A,B,C)
 
+pdf(file = "~/AA_Microbiome/Figures/Oocysts_qPCR_Manuscript/Figure_1.2.pdf", width = 10, height = 8)
+grid.arrange(A1)
+dev.off()
+
+pdf(file = "~/AA_Microbiome/Figures/Oocysts_qPCR_Manuscript/Figure_1.3.pdf", width = 10, height = 8)
+grid.arrange(B1)
+dev.off()
 ## First test on Eppendorf cycler
 data.std%>%
   select(Sample.Name,Task,Std_series,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm)%>%
