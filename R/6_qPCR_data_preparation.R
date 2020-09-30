@@ -39,7 +39,7 @@ if(Unknowns){
   ##Define numeric and factor variables 
   num.vars <- c("Ct", "Ct_mean", "Sd_Ct", "Qty", "Qty_mean", "Sd_Qty", "Oocyst_count", "Feces_weight", "Qubit", "NanoDrop", "Beads_weight", "Tm", 
                 "Oocyst_1", "Oocyst_2", "Oocyst_3", "Oocyst_4", "Oocyst_5", "Oocyst_6", "Oocyst_7", "Oocyst_8", "Dilution_factor", "Volume", "Sporulated")
-  fac.vars <- c("Well", "Sample.Name", "Detector", "Task", "Date", "Operator", "Cycler", "Parasite", "Sample_type", "Extraction")  
+  fac.vars <- c("Well", "Sample.Name", "Detector", "Task", "Date", "Operator", "Cycler", "Parasite", "Sample_type", "Extraction", "Strain")  
   data.unk[, num.vars] <- apply(data.unk[, num.vars], 2, as.numeric)
   data.unk[, fac.vars] <- apply(data.unk[, fac.vars], 2, as.factor)
 }
@@ -90,12 +90,12 @@ data.std%>%
 summary(lm(formula = log10(Oocyst_count*8)~Ct, data = subset(data.std, Cycler=="ABI" & Task== "Standard" & Std_series%in%c("A","B"))))
 
 # comput simple linear models from standards
-# "Ct as modeled by Genome copies"
+# "Genome copies modeled by Ct"
 data.std.lm<- subset(data.std, Task== "Standard")
 data.std.lm %>% 
   select(Sample.Name, Task, Ct, Cycler, Oocyst_count, Parasite, Genome_copies)-> data.std.lm
 
-lm.GC1 <- lm(Ct~log10(Oocyst_count), data.std.lm)
+lm.GC1 <- lm(log10(Genome_copies)~Ct, data.std.lm)
 summary(lm.GC1)
 data.std.lm$predicted<- 10^predict(lm.GC1)
 data.std.lm$residuals<- 10^residuals(lm.GC1)
@@ -143,6 +143,23 @@ ggplot(data.std.lm, aes(x = Oocyst_count, y = Genome_copies, color= Cycler)) +
   theme(text = element_text(size=20))+
   annotation_logticks(sides = "bl")-> A2
 
+ggplot(data.std.lm, aes(x = Ct, y = Genome_copies)) +
+  geom_smooth(method = "lm", se = T, color="black") +
+  guides(color = FALSE, size = FALSE) +  # Size legend also removed
+  #geom_point(aes(y = predicted), shape = 21) +
+  scale_y_log10("log 10 Eimeria genome copies/µL gDNA", 
+                breaks = scales::trans_breaks("log10", function(x) 10^x),
+                labels = scales::trans_format("log10", scales::math_format(10^.x)))+
+  geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 20, fill= Cycler), color= "black", alpha= 0.5)+
+  #stat_cor(label.x = 4,  label.y = 3,method = "spearman")+
+  stat_cor(label.x = 5, label.y = 4,aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~")))+# Add correlation coefficient
+  stat_regline_equation(label.x = 5, label.y = 4.5)+
+  #stat_summary(fun.data=mean_cl_boot, geom="pointrange", shape=16, size=0.5, color="black")+
+  labs(tag = "A)")+
+  theme_bw() +
+  theme(text = element_text(size=20))+
+  annotation_logticks(sides = "l")-> A3
+
 #Linear model perfect fit Genome copies ~ Oocyst count
 lm.GC2<- lm(Genome_copies~ Oocyst_count, data = data.std.lm)
 summary(lm.GC2)
@@ -164,8 +181,8 @@ ggplot(data.std.lm, aes(x = Oocyst_count, y = Ct, color= Parasite)) +
   theme(text = element_text(size=20))+
   annotation_logticks(sides = "b")-> B1
 
-ggplot(data.std.lm, aes(x = Oocyst_count, y = predicted, color= Cycler)) +
-  geom_smooth(method = "lm", se = FALSE) +
+ggplot(data.std.lm, aes(x = Oocyst_count, y = Genome_copies)) +
+  geom_smooth(method = "lm", se = FALSE, color= "darkgray") +
   guides(color = FALSE, size = FALSE) +  # Size legend also removed
   #geom_point(aes(y = predicted), shape = 21) +
   scale_x_log10("log 10 Oocysts count", 
@@ -176,13 +193,13 @@ ggplot(data.std.lm, aes(x = Oocyst_count, y = predicted, color= Cycler)) +
                 labels = scales::trans_format("log10", scales::math_format(10^.x)))+
   geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 25, fill= Cycler), color= "black", alpha= 0.5)+
   #stat_cor(label.x = 4,  label.y = 3,method = "spearman")+
-  stat_cor(label.x = 4, label.y = c(3.5,3,2.5),aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~")))+# Add correlation coefficient
-  stat_regline_equation(label.x = 4, label.y = c(2,1.5,1))+
+  stat_cor(label.x = 4, label.y = 3.5,aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~")))+# Add correlation coefficient
+  stat_regline_equation(label.x = 4, label.y = 3)+
   #stat_summary(fun.data=mean_cl_boot, geom="pointrange", shape=16, size=0.5, color="black")+
   labs(tag = "A)")+
   theme_bw() +
   theme(text = element_text(size=20))+
-  annotation_logticks(sides = "b")
+  annotation_logticks(sides = "b")->B2
 
 ##Oocysts
 data.std%>%
@@ -276,6 +293,9 @@ pdf(file = "~/AA_Microbiome/Figures/Oocysts_qPCR_Manuscript/Figure_1.4.pdf", wid
 grid.arrange(A2)
 dev.off()
 
+pdf(file = "~/AA_Microbiome/Figures/Oocysts_qPCR_Manuscript/Figure_1.5.pdf", width = 10, height = 8)
+grid.arrange(A3)
+dev.off()
 
 ## First test on Eppendorf cycler
 data.std%>%
@@ -318,12 +338,9 @@ summary(lm(formula = log10(Oocyst_count)~Ct, data = subset(data.std, Cycler=="Bi
 
 ###### Intersample variation experiment #####
 if(Unknowns){
-  ##Predict using the result from the lm 
-  data.unk$model_Qty<- predict(lm.GC, data.unk)
-  data.unk$model_Qty<-10^(data.unk$model_Qty)
     
 data.unk%>%
-  dplyr::select(Sample.Name, Task, Ct,Qty,Cycler,Parasite, Sample_type, Extraction, Tm, Oocyst_1, Oocyst_2, Oocyst_3, Oocyst_4, Oocyst_5,Oocyst_6, Oocyst_7, Oocyst_8, Sporulated, Dilution_factor, Volume, model_Qty)%>%
+  dplyr::select(Sample.Name, Task, Ct,Qty,Cycler,Parasite, Sample_type, Extraction, Tm, Oocyst_1, Oocyst_2, Oocyst_3, Oocyst_4, Oocyst_5,Oocyst_6, Oocyst_7, Oocyst_8, Sporulated, Dilution_factor, Volume, Strain)%>%
   dplyr::mutate(Qty= 10^((Ct-36)/-3.1))%>% ## Considering ABI std curve (Fig.1A)
   filter(Sample_type=="Oocysts" & Task=="Unknown" & Cycler== "ABI", Extraction== "Ceramic_beads")%>%
   dplyr::group_by(Sample.Name)%>%
@@ -354,23 +371,22 @@ data.unk%>%
   annotation_logticks(sides = "bl") -> D
 
 data.unk%>%
-  dplyr::select(Sample.Name, Task, Ct,Qty,Cycler,Parasite, Sample_type, Extraction, Tm, Oocyst_1, Oocyst_2, Oocyst_3, Oocyst_4, Oocyst_5,Oocyst_6, Oocyst_7, Oocyst_8, Sporulated, Dilution_factor, Volume, model_Qty)%>%
+  dplyr::select(Sample.Name, Task, Ct,Qty,Cycler,Parasite, Sample_type, Extraction, Tm, Oocyst_1, Oocyst_2, Oocyst_3, Oocyst_4, Oocyst_5,Oocyst_6, Oocyst_7, Oocyst_8, Sporulated, Dilution_factor, Volume, Strain)%>%
   dplyr::mutate(Qty= 10^((Ct-36)/-3.1))%>% ## Considering ABI std curve (Fig.1A)
-  filter(Sample_type=="Oocysts" & Task=="Unknown" & Cycler== "ABI", Extraction== "Ceramic_beads")%>%
+  filter(Sample_type=="Oocysts" & Task=="Unknown")%>%
   dplyr::group_by(Sample.Name)%>%
   dplyr::mutate(N= n())%>%
   dplyr::mutate(Total_oocysts= (sum(Oocyst_1, Oocyst_2, Oocyst_3, Oocyst_4, Oocyst_5,Oocyst_6, Oocyst_7, Oocyst_8))/N)%>%
   dplyr::mutate(Oocyst_count= (((Total_oocysts*10000)/8)*Dilution_factor))%>% ##Concentration of Oocyst in the solution
   dplyr::mutate(Sporulated_count= (((Sporulated*10000)/8)*Dilution_factor))%>% ##Concentration of sporulated oocyst in the solution
-  dplyr::mutate(Sporulation_rate= (Sporulated_count/Oocyst_count)*100)-> data.unk.lm
+  dplyr::mutate(Sporulation_rate= (Sporulated_count/Oocyst_count)*100)%>%
+  dplyr::mutate(Sporulation_rate= as.numeric(Sporulation_rate))-> data.unk.lm
 
+data.unk.lm$predicted.Gc<- 10^predict(lm.GC1, data.unk.lm)
+data.unk.lm$residuals.Gc<- 10^residuals(lm.GC1, data.unk.lm)
 
-data.unk.lm$predicted.Ct<- predict(lm.GC1, data.unk.lm)
-data.unk.lm$residuals.Ct<- residuals(lm.GC1, data.unk.lm)
-data.unk.lm$predicted.Gc<- predict(lm.GC2, data.unk.lm)
-
-ggplot(data.unk.lm, aes(x = Oocyst_count, y = predicted.Ct, color= Cycler)) +
-  geom_smooth(method = "lm", se = F) +
+ggplot(data.unk.lm, aes(x = Oocyst_count, y = predicted.Gc)) +
+  geom_smooth(method = "lm", se = F,color= "darkgrey") +
   guides(color = FALSE, size = FALSE) +  # Size legend also removed
   #geom_point(aes(y = predicted), shape = 21) +
   scale_x_log10("log 10 Eimeria Oocysts Count", 
@@ -379,16 +395,21 @@ ggplot(data.unk.lm, aes(x = Oocyst_count, y = predicted.Ct, color= Cycler)) +
   scale_y_log10("log 10 Eimeria genome copies/µL gDNA", 
                 breaks = scales::trans_breaks("log10", function(x) 10^x),
                 labels = scales::trans_format("log10", scales::math_format(10^.x)))+
-  geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 20, fill= Cycler), color= "black", alpha= 0.5)+
+  geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 20, fill= Strain), color= "black", alpha= 0.5)+
   #stat_cor(label.x = 4,  label.y = 3,method = "spearman")+
-  stat_cor(label.x = 4, label.y = c(3,2,1),aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~")))+# Add correlation coefficient
-  stat_regline_equation(label.x = 4, label.y = c(3.5,2.5,1.5))+
-  #stat_summary(fun.data=mean_cl_boot, geom="pointrange", shape=16, size=0.5, color="black")+
+  stat_cor(label.x = 4, label.y = 7.75,aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~")))+# Add correlation coefficient
+  stat_regline_equation(label.x = 4, label.y = 8)+
+  stat_summary(fun.data=mean_cl_boot, geom="pointrange", shape=16, size=0.5, color="black")+
   labs(tag = "A)")+
   theme_bw() +
   theme(text = element_text(size=20))+
-  annotation_logticks(sides = "bl")
-summary(lm(formula = log10(Oocyst_count)~log10(Qty), data = subset(data.unk, Sample_type== "Oocysts")))
+  annotation_logticks(sides = "bl")->D1
+
+summary(glm(formula = log10(predicted.Gc)~log10(Oocyst_count)+Parasite+Strain+Cycler, data = data.unk.lm))
+
+pdf(file = "~/AA_Microbiome/Figures/Oocysts_qPCR_Manuscript/Figure_2.1.pdf", width = 10, height = 8)
+grid.arrange(D1)
+dev.off()
 
 }
 ########## Mock samples Experiment #########
@@ -449,7 +470,7 @@ if(Mock){
     dplyr::group_by(Parasite)-> Std.mock
   
   data.unk%>%
-    dplyr::select(Sample.Name,Task,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm,Sample_type,Feces_weight,Extraction,Date, NanoDrop)%>%
+    dplyr::select(Sample.Name,Task,Ct,Qty,Cycler,Oocyst_count,Parasite,Tm,Sample_type,Feces_weight,Extraction,Date, NanoDrop, Strain)%>%
     filter(Sample_type=="Feces" & Task=="Unknown" & Extraction!="Glass_beads")%>%
     dplyr::mutate(Qty= 10^((Ct-36)/-3.1), ## Transform Ct to Genome copies per uL gDNA qPCR
                   #GC_ngDNA= Genome_copies/NanoDrop, ## Estimate Genome copies by ng of fecal DNA
@@ -457,17 +478,22 @@ if(Mock){
                   DNA_sample= NanoDrop*40, ## Estimate total gDNA of sample
                   DNA_g_feces= DNA_sample/Feces_weight, ## Transform it to ng fecal DNA by g of feces
                   GC_gfeces= GC_ngDNA*DNA_g_feces, ## Estimate genome copies by g of feces
-                  OPG=Oocyst_count/Feces_weight)%>% ## Estimate oocyst per g of feces for mock samples
-    bind_rows(Std.mock)-> data.mock
+                  OPG=Oocyst_count/Feces_weight)-> data.mock ## Estimate oocyst per g of feces for mock samples
   
-  rm(Std.mock)
+  data.mock$predicted.Gc<- 10^predict(lm.GC1, data.mock)
+  data.mock$residuals.Gc<- 10^residuals(lm.GC1, data.mock) 
+  
+  data.mock%>%
+  bind_rows(data.std.lm)-> data.mock
+  
+  #rm(Std.mock)
   
   ##
   set.seed(2020)
   data.mock%>%
-    dplyr::select(Sample.Name,Task,Qty,Ct,Oocyst_count)%>%  
+    dplyr::select(Sample.Name,Task,Qty,Ct,Oocyst_count, predicted.Gc)%>%  
     filter(Task%in%c("Standard", "Unknown"))%>%
-    ggplot(aes(x = Oocyst_count, y = Qty), geom=c("point", "smooth")) +
+    ggplot(aes(x = Oocyst_count, y = predicted.Gc), geom=c("point", "smooth")) +
     scale_x_log10(name = "log10 Eimeria Oocyst count (Flotation)", 
                   breaks = scales::trans_breaks("log10", function(x) 10^x),
                   labels = scales::trans_format("log10", scales::math_format(10^.x)))+
@@ -480,18 +506,22 @@ if(Mock){
     theme(legend.text=element_text(size=20)) +
     theme(legend.key.size = unit(3,"line")) +
     geom_smooth(aes(color= Task, fill= Task), method = "lm")+            
-    stat_cor(aes(color = Task), label.x = 2,  label.y = c(7, 6),method = "spearman")+
-    stat_cor(label.x = 2, label.y = c(6.5, 5.5),aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"), color = Task))+        # Add correlation coefficient
-    stat_regline_equation(aes(color = Task), label.x = 0.75, label.y = c(7, 6))+
+    #stat_cor(aes(color = Task), label.x = 2,  label.y = c(7, 6),method = "spearman")+
+    stat_cor(label.x = 0.75, label.y =  5.5,aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"), color = Task))+        # Add correlation coefficient
+    stat_regline_equation(aes(color = Task), label.x = 0.75, label.y = 6)+
     guides(colour = guide_legend(override.aes = list(size=10))) +
     theme(text = element_text(size=20),legend.position = "none")+
     labs(tag = "B)")+
-    annotation_logticks(sides = "bl")+
-    theme(legend.position = c(0.85, 0.25), legend.direction = "vertical",
+    annotation_logticks(sides = "bl")->E#+
+    #theme(legend.position = c(0.85, 0.25), legend.direction = "vertical",
           # Change legend key size and key width
-          legend.key.size = unit(0.25, "cm"),
-          legend.key.width = unit(0.15,"cm"))-> E
-
+          #legend.key.size = unit(0.25, "cm"),
+          #legend.key.width = unit(0.15,"cm"))
+  
+  pdf(file = "~/AA_Microbiome/Figures/Oocysts_qPCR_Manuscript/Figure_2.2.pdf", width = 10, height = 8)
+  grid.arrange(E)
+  dev.off()
+  
   summary(lm(formula = log10(Qty)~log10(Oocyst_count), data = subset(data.mock, Task== "Standard")))
   modelstd<- lm(formula = log10(Qty)~log10(Oocyst_count), data = subset(data.mock, Task== "Standard"))
   summary(lm(formula = log10(Qty)~log10(Oocyst_count), data = subset(data.mock, Task== "Unknown" & Oocyst_count >0)))
@@ -546,11 +576,14 @@ if(Infexp){
 ##Define real positive and negatives based on Tm 
 data.inf %>% 
   dplyr::mutate(Infection = case_when(is.na(Tm)  ~ "Negative",
-                                      Tm >= 80   ~ "Negative", Tm < 80 ~ "Positive"))%>%
-  dplyr::mutate(Qty= 10^((Ct-42)/-4), Genome_copies= 10^((Ct-42)/-4)) -> data.inf
+                                      Tm >= 80   ~ "Negative", Tm < 80 ~ "Positive"))-> data.inf#%>%
+  #dplyr::mutate(Qty= 10^((Ct-42)/-4), Genome_copies= 10^((Ct-42)/-4)) -> data.inf
 
-data.inf %>%
-  select(Tm, Qty, Genome_copies, labels) %>% # select variables to summarise
+  data.inf$Genome_copies<- 10^predict(lm.GC1, data.inf)
+  data.inf$residuals<- 10^residuals(lm.GC1, data.inf)
+
+  data.inf %>%
+  select(Tm, Genome_copies,labels) %>% # select variables to summarise
   na.omit()%>%
   dplyr::group_by(labels)%>%
   dplyr::summarise_each(funs(min = min, q25 = quantile(., 0.25), median = median, q75 = quantile(., 0.75), 

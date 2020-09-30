@@ -630,7 +630,7 @@ ts.data%>%
 ## DNA as a predictor of weightloss
 sdt%>%
   ggplot(aes(Genome_copies_mean, (weight/weight_dpi0)*100))+
-  geom_smooth(method = lm)+
+  geom_smooth(method = lm, color= "black")+
   scale_y_continuous(name = "Relative weight loss to 0 dpi (%)")+
   scale_x_log10(name = "log10 Genome copies/µL gDNA (qPCR)", 
                 breaks = scales::trans_breaks("log10", function(x) 10^x),
@@ -643,6 +643,9 @@ sdt%>%
   stat_cor(label.x = 2.0, label.y = 84, aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~"))) +
   stat_regline_equation(label.x = 2.0, label.y = 88)+
   stat_cor(label.x = 2.0,  label.y = 86,method = "spearman")-> wlqpcr
+
+sdt$RelWeight<- (sdt$weight/sdt$weight_dpi0)*100
+summary(lm(RelWeight~Genome_copies_mean, sdt))
 
 ## Weight loss
 sdt%>%
@@ -725,6 +728,18 @@ pdf(file = "~/AA_Microbiome/Figures/Oocysts_qPCR_Manuscript/Figure_3.pdf", width
 grid.arrange(a,b,opgqpcr, ncol= 1, nrow= 3)
 dev.off()
 
+pdf(file = "~/AA_Microbiome/Figures/Oocysts_qPCR_Manuscript/Figure_3.1.pdf", width = 10, height = 8)
+a
+dev.off()
+
+pdf(file = "~/AA_Microbiome/Figures/Oocysts_qPCR_Manuscript/Figure_3.2.pdf", width = 10, height = 8)
+b
+dev.off()
+
+pdf(file = "~/AA_Microbiome/Figures/Oocysts_qPCR_Manuscript/Figure_3.3.pdf", width = 10, height = 8)
+opgqpcr
+dev.off()
+
 pdf(file = "~/AA_Microbiome/Figures/Oocysts_qPCR_Manuscript/Figure_4.pdf", width = 20, height = 10)
 grid.arrange(oocyst36, dna36, elopp, oocyst37, dna37, elodp, ncol= 3, nrow= 2)
 dev.off()
@@ -747,4 +762,12 @@ dev.off()
 
 pdf(file = "~/AA_Microbiome/Figures/Oocysts_qPCR_Manuscript/Figure_4.5.pdf", width = 25, height = 10)
 grid.arrange(tssum, tsmax, ts6, ncol= 3, nrow= 1)
+dev.off()
+
+pdf(file = "~/AA_Microbiome/Figures/Oocysts_qPCR_Manuscript/Figure_5.1.pdf", width = 10, height = 8)
+ai
+dev.off()
+
+pdf(file = "~/AA_Microbiome/Figures/Oocysts_qPCR_Manuscript/Figure_5.2.pdf", width = 10, height = 8)
+wlqpcr
 dev.off()
