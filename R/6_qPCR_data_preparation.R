@@ -65,35 +65,86 @@ if(Infexp){
 rm(fac.vars, num.vars)
 ####### Standard curves #######
 set.seed(2020)
-##Final standard curve for Intersample variation and mock samples experiment
-data.std%>%
-  dplyr::select(Sample.Name,Task,Std_series,Ct,Cycler,Oocyst_count,Parasite,Tm,Date)%>%
-  filter(Task=="Standard" & Cycler=="ABI" & Std_series%in%c("A","B"))%>%
-  dplyr::group_by(Parasite)%>%
-  ggplot(aes(Oocyst_count*8, Ct))+
-  scale_x_log10("log 10 Eimeria genome copies/µL gDNA", 
-                breaks = scales::trans_breaks("log10", function(x) 10^x),
-                labels = scales::trans_format("log10", scales::math_format(10^.x)))+
-  geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 25, fill= Cycler), color= "black", alpha= 0.5)+
-  geom_smooth(color= "black", method = "lm")+            
-  stat_cor(label.x = 5,  label.y = 34,method = "spearman")+
-  stat_cor(label.x = 5, label.y = 32,aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~")))+        # Add correlation coefficient
-  stat_regline_equation(label.x = 5, label.y = 36)+
-  stat_summary(fun.data=mean_cl_boot, geom="pointrange", shape=16, size=0.5, color="black")+
-  labs(tag = "A)")+
-  theme_bw() +
-  #facet_grid(cols = vars(Std_series))+
-  theme(text = element_text(size=20), legend.position = "none")+
-  annotation_logticks(sides = "b")+
-  coord_cartesian(ylim = c(10, 40)) -> A
-
-summary(lm(formula = log10(Oocyst_count*8)~Ct, data = subset(data.std, Cycler=="ABI" & Task== "Standard" & Std_series%in%c("A","B"))))
-
 # comput simple linear models from standards
 # "Genome copies modeled by Ct"
-data.std.lm<- subset(data.std, Task== "Standard")
+data.std.lm<- subset(data.std, Task== "Standard") ## Select just data from standards 
 data.std.lm %>% 
-  select(Sample.Name, Task, Ct, Cycler, Oocyst_count, Parasite, Genome_copies)-> data.std.lm
+  select(Sample.Name, Task, Ct, Cycler, Oocyst_count, Parasite, Genome_copies)-> data.std.lm ## Select useful data
+
+##Ct modeled by Oocyst counts; data from different Cyclers
+data.std.lm%>%
+  ggplot(aes(x = Oocyst_count, y = Ct, color= Cycler)) +
+  geom_smooth(method = "lm", se = T) +
+  guides(color = FALSE, size = FALSE) +  # Size legend also removed
+  scale_x_log10("log 10 Eimeria Oocysts Count", 
+                breaks = scales::trans_breaks("log10", function(x) 10^x),
+                labels = scales::trans_format("log10", scales::math_format(10^.x)))+
+  geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 20, fill= Cycler), color= "black", alpha= 0.5)+
+  stat_cor(label.x = 5, label.y = c(35,30,25),aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~")))+# Add correlation coefficient
+  stat_regline_equation(label.x = 5, label.y = c(36.5,31.5,26.5))+
+  #stat_summary(fun.data=mean_cl_boot, geom="pointrange", shape=16, size=0.5, color= "black")+
+  labs(tag = "A)")+
+  theme_bw() +
+  theme(text = element_text(size=20))+
+  annotation_logticks(sides = "b")-> A1
+
+###Model by cycler 
+lm.CtABI1 <- lm(Ct~log10(Oocyst_count), subset(data.std.lm, Cycler=="ABI"))
+lm.CtABI2 <- lm(Ct~log10(Oocyst_count)+Parasite, subset(data.std.lm, Cycler=="ABI"))
+lm.CtABI3 <- lm(Ct~log10(Oocyst_count), subset(data.std.lm, Cycler=="ABI"&Parasite=="E_falciformis"))
+lm.CtABI4 <- lm(Ct~log10(Oocyst_count), subset(data.std.lm, Cycler=="ABI"&Parasite=="E_ferrisi"))
+lm.CtEpp <- lm(Ct~log10(Oocyst_count), subset(data.std.lm, Cycler=="Eppendorf"))
+lm.CtBR <- lm(Ct~log10(Oocyst_count), subset(data.std.lm, Cycler=="BioRad"))
+
+require("rcompanion")
+compareLM(lm.CtABI1, lm.CtEpp, lm.CtBR)
+compareLM(lm.CtABI1, lm.CtABI2, lm.CtABI3, lm.CtABI4)
+
+lm.CtAll<- lm(Ct~log10(Oocyst_count)+Parasite+Cycler, data.std.lm)
+lm.CtPar<- lm(Ct~log10(Oocyst_count)+Parasite, data.std.lm)
+lm.CtCyc<- lm(Ct~log10(Oocyst_count)+Parasite+Cycler, data.std.lm)
+lm.CtInt<- lm(Ct~log10(Oocyst_count)+Parasite*Cycler, data.std.lm)
+
+compareLM(lm.CtAll, lm.CtPar, lm.CtCyc, lm.CtInt)
+summary(lm.CtAll)
+summary(lm.CtInt)
+
+#require("ggeffects")
+#ggpredict(lm.CtEpp)
+
+data.std.lm%>%
+  ggplot(aes(x = Oocyst_count, y = Genome_copies)) +
+  geom_smooth(method = "lm", se = F, color= "black") +
+  guides(color = FALSE, size = FALSE) +  # Size legend also removed
+  scale_x_log10("log 10 Eimeria Oocysts Count", 
+                breaks = scales::trans_breaks("log10", function(x) 10^x),
+                labels = scales::trans_format("log10", scales::math_format(10^.x)))+
+  scale_y_log10("log 10 Eimeria genome copies/µL gDNA", 
+                breaks = scales::trans_breaks("log10", function(x) 10^x),
+                labels = scales::trans_format("log10", scales::math_format(10^.x)))+
+  geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 20, fill= Cycler), color= "black", alpha= 0.5)+
+    stat_cor(label.x = 4, label.y = c(3,2,1),aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~")))+# Add correlation coefficient
+  stat_regline_equation(label.x = 4, label.y = c(3.5,2.5,1.5))+
+  labs(tag = "B)")+
+  theme_bw() +
+  theme(text = element_text(size=20))+
+  annotation_logticks(sides = "bl")-> A2
+
+##Linear model (Standard curve for the rest of experiments)
+data.std.lm%>%
+  ggplot(aes(x = Ct, y = Genome_copies)) +
+  geom_smooth(method = "lm", se = T, color="black") +
+  guides(color = FALSE, size = FALSE) +  # Size legend also removed
+  scale_y_log10("log 10 Eimeria genome copies/µL gDNA", 
+                breaks = scales::trans_breaks("log10", function(x) 10^x),
+                labels = scales::trans_format("log10", scales::math_format(10^.x)))+
+  geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 20, fill= Cycler), color= "black", alpha= 0.5)+
+  stat_cor(label.x = 5, label.y = 4,aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~")))+# Add correlation coefficient
+  stat_regline_equation(label.x = 5, label.y = 4.5)+
+  labs(tag = "A)")+
+  theme_bw() +
+  theme(text = element_text(size=20))+
+  annotation_logticks(sides = "l")-> A3
 
 lm.GC1 <- lm(log10(Genome_copies)~Ct, data.std.lm)
 summary(lm.GC1)
@@ -104,61 +155,6 @@ data.std.lm$residuals<- 10^residuals(lm.GC1)
 data.std.lm %>% 
   select(Genome_copies, predicted, residuals) %>%
   head()
-
-##Plot Std curve Cycler
-ggplot(data.std.lm, aes(x = Oocyst_count, y = Ct, color= Cycler)) +
-  geom_smooth(method = "lm", se = T) +
-  guides(color = FALSE, size = FALSE) +  # Size legend also removed
-  #geom_point(aes(y = predicted), shape = 21) +
-  scale_x_log10("log 10 Eimeria Oocysts Count", 
-                breaks = scales::trans_breaks("log10", function(x) 10^x),
-                labels = scales::trans_format("log10", scales::math_format(10^.x)))+
-  geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 20, fill= Cycler), color= "black", alpha= 0.5)+
-  #stat_cor(label.x = 4,  label.y = 3,method = "spearman")+
-  stat_cor(label.x = 5, label.y = c(35,30,25),aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~")))+# Add correlation coefficient
-  stat_regline_equation(label.x = 5, label.y = c(36.5,31.5,26.5))+
-  #stat_summary(fun.data=mean_cl_boot, geom="pointrange", shape=16, size=0.5, color="black")+
-  labs(tag = "A)")+
-  theme_bw() +
-  theme(text = element_text(size=20))+
-  annotation_logticks(sides = "b")-> A1
-
-ggplot(data.std.lm, aes(x = Oocyst_count, y = Genome_copies, color= Cycler)) +
-  geom_smooth(method = "lm", se = F) +
-  guides(color = FALSE, size = FALSE) +  # Size legend also removed
-  #geom_point(aes(y = predicted), shape = 21) +
-  scale_x_log10("log 10 Eimeria Oocysts Count", 
-                breaks = scales::trans_breaks("log10", function(x) 10^x),
-                labels = scales::trans_format("log10", scales::math_format(10^.x)))+
-  scale_y_log10("log 10 Eimeria genome copies/µL gDNA", 
-                breaks = scales::trans_breaks("log10", function(x) 10^x),
-                labels = scales::trans_format("log10", scales::math_format(10^.x)))+
-  geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 20, fill= Cycler), color= "black", alpha= 0.5)+
-  #stat_cor(label.x = 4,  label.y = 3,method = "spearman")+
-  stat_cor(label.x = 4, label.y = c(3,2,1),aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~")))+# Add correlation coefficient
-  stat_regline_equation(label.x = 4, label.y = c(3.5,2.5,1.5))+
-  #stat_summary(fun.data=mean_cl_boot, geom="pointrange", shape=16, size=0.5, color="black")+
-  labs(tag = "A)")+
-  theme_bw() +
-  theme(text = element_text(size=20))+
-  annotation_logticks(sides = "bl")-> A2
-
-ggplot(data.std.lm, aes(x = Ct, y = Genome_copies)) +
-  geom_smooth(method = "lm", se = T, color="black") +
-  guides(color = FALSE, size = FALSE) +  # Size legend also removed
-  #geom_point(aes(y = predicted), shape = 21) +
-  scale_y_log10("log 10 Eimeria genome copies/µL gDNA", 
-                breaks = scales::trans_breaks("log10", function(x) 10^x),
-                labels = scales::trans_format("log10", scales::math_format(10^.x)))+
-  geom_jitter(shape=21, position=position_jitter(0.2), aes(size= 20, fill= Cycler), color= "black", alpha= 0.5)+
-  #stat_cor(label.x = 4,  label.y = 3,method = "spearman")+
-  stat_cor(label.x = 5, label.y = 4,aes(label= paste(..rr.label.., ..p.label.., sep= "~`,`~")))+# Add correlation coefficient
-  stat_regline_equation(label.x = 5, label.y = 4.5)+
-  #stat_summary(fun.data=mean_cl_boot, geom="pointrange", shape=16, size=0.5, color="black")+
-  labs(tag = "A)")+
-  theme_bw() +
-  theme(text = element_text(size=20))+
-  annotation_logticks(sides = "l")-> A3
 
 #Linear model perfect fit Genome copies ~ Oocyst count
 lm.GC2<- lm(Genome_copies~ Oocyst_count, data = data.std.lm)
