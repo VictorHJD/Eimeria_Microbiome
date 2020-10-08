@@ -112,6 +112,7 @@ summary(lm.CtInt)
 #require("ggeffects")
 #ggpredict(lm.CtEpp)
 
+##Linear model Genome copies modeled by Oocyst count 
 data.std.lm%>%
   ggplot(aes(x = Oocyst_count, y = Genome_copies)) +
   geom_smooth(method = "lm", se = F, color= "black") +
@@ -129,6 +130,8 @@ data.std.lm%>%
   theme_bw() +
   theme(text = element_text(size=20))+
   annotation_logticks(sides = "bl")-> A2
+
+lm.GC <- lm(log10(Genome_copies)~log10(Oocyst_count), data.std.lm)
 
 ##Linear model (Standard curve for the rest of experiments)
 data.std.lm%>%
