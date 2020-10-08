@@ -151,6 +151,8 @@ data.std.lm%>%
 
 lm.GC1 <- lm(log10(Genome_copies)~Ct, data.std.lm)
 summary(lm.GC1)
+lm.GCAll <- lm(log10(Genome_copies)~Ct+Parasite+Cycler, data.std.lm)
+summary(lm.GCAll)
 data.std.lm$predicted<- 10^predict(lm.GC1)
 data.std.lm$residuals<- 10^residuals(lm.GC1)
 
